@@ -53,7 +53,7 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    bool loadNamModel(juce::File modelToLoad);
+    void loadNamModel(juce::File modelToLoad);
     bool getNamModelStatus();
     void clearNAM();
     
@@ -87,17 +87,25 @@ public:
 
     bool eqModuleVisible {false};
 
-    bool loadFromPreset(juce::String modelPath, juce::String irPath);
+    void loadFromPreset(juce::String modelPath, juce::String irPath);
 
 
 private:
     //==============================================================================
+
+    enum OutputFilters
+    {
+        LowCutF = 0,
+        HighCutF
+    };
 
     NeuralAmpModeler myNAM;
     
     juce::dsp::Convolution cab;
     bool irFound {false};
     bool irLoaded {false};
+
+    std::atomic<float>* filterCuttofs[2];
 
     juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter <float>, juce::dsp::IIR::Coefficients <float>>highCut, lowCut;
 
@@ -106,6 +114,8 @@ private:
 
     std::string lastIrPath = "null";
     std::string lastIrName = "null";
+
+    bool namModelLoaded {false};
 
     EqProcessor tenBandEq;
     Doubler doubler;

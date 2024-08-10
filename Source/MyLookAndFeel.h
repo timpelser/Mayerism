@@ -615,6 +615,12 @@ public:
 				else
 					return juce::String(value) + " dB";
 				break;
+            case SliderTypes::Filters:
+                if(value <= 20 || value >= 20000)
+                    return "OFF";
+                else
+                    return juce::String(value) + " Hz";
+                break;
             default:
                 return String(value) + this->getTextValueSuffix();
                 break;
@@ -625,7 +631,8 @@ public:
 	{
         Default = 0,
         Doubler,
-        Gate
+        Gate,
+        Filters
 	};
 
 private:

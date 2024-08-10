@@ -43,7 +43,6 @@ NamEditor::NamEditor(NamJUCEAudioProcessor& p)
             xStart = sliders[PluginKnobs::Middle]->getX();
             sliders[slider]->setBounds(xStart + ((slider - 6) * xOffsetMultiplier) - 10, 435, knobSize + size2, knobSize + size2 + 15);
             sliders[slider]->setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
-            sliders[slider]->setTextValueSuffix(" Hz");
         }
         else
             sliders[slider]->setBounds(xStart + (slider * xOffsetMultiplier), 204, knobSize, knobSize);
@@ -51,7 +50,8 @@ NamEditor::NamEditor(NamJUCEAudioProcessor& p)
             
     }
 
-    sliders[PluginKnobs::Doubler]->setTextValueSuffix("");
+    sliders[PluginKnobs::LowCut]->setCustomSlider(CustomSlider::SliderTypes::Filters);
+    sliders[PluginKnobs::HighCut]->setCustomSlider(CustomSlider::SliderTypes::Filters);
     sliders[PluginKnobs::Doubler]->setPopupDisplayEnabled(true, true, getTopLevelComponent());
     sliders[PluginKnobs::Doubler]->setCustomSlider(CustomSlider::SliderTypes::Doubler);
     sliders[PluginKnobs::Doubler]->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
@@ -59,7 +59,7 @@ NamEditor::NamEditor(NamJUCEAudioProcessor& p)
     sliders[PluginKnobs::NoiseGate]->setPopupDisplayEnabled(true, true, getTopLevelComponent());
     sliders[PluginKnobs::NoiseGate]->setCustomSlider(CustomSlider::SliderTypes::Gate);
     sliders[PluginKnobs::NoiseGate]->setPopupDisplayEnabled(true, true, getTopLevelComponent());
-    sliders[PluginKnobs::NoiseGate]->addListener(this);
+    sliders[PluginKnobs::NoiseGate]->addListener(this);    
 
     //Tone Stack Toggle
     toneStackToggle.reset(new juce::ToggleButton("ToneStackToggleButton"));
@@ -104,7 +104,7 @@ NamEditor::NamEditor(NamJUCEAudioProcessor& p)
     clearModelButton->onClick = [this]
     {
         audioProcessor.clearNAM();
-        clearModelButton->setVisible(false); // TODO: Set visibility based on logic from the processor side...
+        clearModelButton->setVisible(audioProcessor.getNamModelStatus());
         modelNameBox->setText("");
         modelNameBox->clear();
     };
@@ -287,20 +287,18 @@ void NamEditor::setToneStackEnabled(bool toneStackEnabled)
 void NamEditor::loadModelButtonClicked()
 {
     juce::FileChooser chooser("Choose an model to load", juce::File::getSpecialLocation(juce::File::userDesktopDirectory), "*.nam", true, false);
-
-    bool modelLoaded = false;
     
     if (chooser.browseForFileToOpen())
     {		
         juce::File model;
         model = chooser.getResult();
-        modelLoaded = audioProcessor.loadNamModel(model);
+        audioProcessor.loadNamModel(model);
         modelNameBox->setColour(juce::TextEditor::textColourId, juce::Colours::snow);
         modelNameBox->setText(model.getFileNameWithoutExtension());
         modelNameBox->setCaretPosition(0);
     }
 
-    clearModelButton->setVisible(modelLoaded);
+    clearModelButton->setVisible(audioProcessor.getNamModelStatus());
 }
 
 void NamEditor::loadIrButtonClicked()
@@ -394,7 +392,7 @@ void NamEditor::updateAfterPresetLoad()
     //DBG(addons.getProperty ("model_path", juce::String()).toString());
     //DBG(addons.getProperty ("ir_path", juce::String()).toString());
 
-    bool modelLoaded = audioProcessor.loadFromPreset(addons.getProperty ("model_path", juce::String()), addons.getProperty ("ir_path", juce::String()));               
+    audioProcessor.loadFromPreset(addons.getProperty ("model_path", juce::String()), addons.getProperty ("ir_path", juce::String()));               
     
     //Check the processor for Model and IR status after loading preset.
     if(audioProcessor.getLastModelPath() != "null")
@@ -419,6 +417,6 @@ void NamEditor::updateAfterPresetLoad()
         irNameBox->setText("");
     }
 
-    clearModelButton->setVisible(modelLoaded); // Fix this!!!
+    clearModelButton->setVisible(audioProcessor.getNamModelStatus());
     clearIrButton->setVisible(audioProcessor.getIrStatus()); 
 }

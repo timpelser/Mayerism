@@ -25,7 +25,8 @@ NamJUCEAudioProcessor::NamJUCEAudioProcessor()
                         presetManager(apvts)
 #endif
 {
-
+    filterCuttofs[OutputFilters::LowCutF] = apvts.getRawParameterValue("LOWCUT_ID");
+    filterCuttofs[OutputFilters::HighCutF] = apvts.getRawParameterValue("HIGHCUT_ID");
 }
 
 NamJUCEAudioProcessor::~NamJUCEAudioProcessor()
@@ -126,13 +127,18 @@ void NamJUCEAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     try
     {
         if(lastModelPath != "null")
-            myNAM.loadModel(lastModelPath);
+            namModelLoaded = myNAM.loadModel(lastModelPath);
         else
+        {
             myNAM.clearModel();
+            namModelLoaded = false;
+        }
+            
     }
     catch(const std::exception& e)
     {
         myNAM.clearModel();
+        namModelLoaded = false;
     }
 
     //Load last IR
@@ -143,11 +149,9 @@ void NamJUCEAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     }
 }
 
-bool NamJUCEAudioProcessor::loadFromPreset(juce::String modelPath, juce::String irPath)
+void NamJUCEAudioProcessor::loadFromPreset(juce::String modelPath, juce::String irPath)
 {
     this->suspendProcessing(true);
-
-    bool modelLoaded = false;
     
     if(modelPath != "null")
     {
@@ -156,14 +160,15 @@ bool NamJUCEAudioProcessor::loadFromPreset(juce::String modelPath, juce::String 
         {           
             myNAM.clearModel(); 
             lastModelName = "Model File Missing!"; 
-            lastModelPath = modelPath.toStdString();  
+            lastModelPath = modelPath.toStdString(); 
+            namModelLoaded = false; 
         }
         else
         {
             myNAM.loadModel(modelPath.toStdString());
             lastModelPath = modelPath.toStdString();
             lastModelName = fileCheck.getFileNameWithoutExtension().toStdString();
-            modelLoaded = true;
+            namModelLoaded = true;
         }
     }
     else
@@ -171,6 +176,7 @@ bool NamJUCEAudioProcessor::loadFromPreset(juce::String modelPath, juce::String 
         myNAM.clearModel();
         lastModelPath = "null";
         lastModelName = "";
+        namModelLoaded = false; 
     }
 
     //Load last IR
@@ -204,16 +210,13 @@ bool NamJUCEAudioProcessor::loadFromPreset(juce::String modelPath, juce::String 
     DBG("Loaded: \nModel: " + lastModelName + "\nIR: " + lastIrName);
 
     this->suspendProcessing(false);
-
-    return modelLoaded;
 }
 
-bool NamJUCEAudioProcessor::loadNamModel(juce::File modelToLoad)
+void NamJUCEAudioProcessor::loadNamModel(juce::File modelToLoad)
 {
-    bool modelLoaded = false;
     std::string model_path = modelToLoad.getFullPathName().toStdString();
     this->suspendProcessing(true);
-    modelLoaded = myNAM.loadModel(model_path);
+    namModelLoaded = myNAM.loadModel(model_path);
     this->suspendProcessing(false);
 
     lastModelPath = model_path;
@@ -221,8 +224,6 @@ bool NamJUCEAudioProcessor::loadNamModel(juce::File modelToLoad)
 
     auto addons = apvts.state.getOrCreateChildWithName ("addons", nullptr);
     addons.setProperty ("model_path", juce::String(lastModelPath), nullptr);
-
-    return modelLoaded;
 }
 
 bool NamJUCEAudioProcessor::getTriggerStatus()
@@ -233,7 +234,7 @@ bool NamJUCEAudioProcessor::getTriggerStatus()
 
 bool NamJUCEAudioProcessor::getNamModelStatus()
 {
-    return myNAM.isModelLoaded();
+    return this->namModelLoaded;
 }
 
 void NamJUCEAudioProcessor::clearNAM()
@@ -245,6 +246,8 @@ void NamJUCEAudioProcessor::clearNAM()
 
     auto addons = apvts.state.getOrCreateChildWithName ("addons", nullptr);    
     addons.setProperty ("model_path", juce::String(lastModelPath), nullptr);
+
+    namModelLoaded = false;
 
     this->suspendProcessing(false);
 }
@@ -349,11 +352,17 @@ void NamJUCEAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
 
     // Filters
-    *lowCut.state = *juce::dsp::IIR::Coefficients<float>::makeHighPass(getSampleRate(), *apvts.getRawParameterValue("LOWCUT_ID"), 1.0f);
-    *highCut.state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(getSampleRate(), *apvts.getRawParameterValue("HIGHCUT_ID"), 1.0f);
+    if (filterCuttofs[OutputFilters::LowCutF]->load() > 20)
+    {
+        *lowCut.state = *juce::dsp::IIR::Coefficients<float>::makeHighPass(getSampleRate(), filterCuttofs[OutputFilters::LowCutF]->load(), 1.0f);
+        lowCut.process(juce::dsp::ProcessContextReplacing<float>(block));
+    }
 
-    lowCut.process(juce::dsp::ProcessContextReplacing<float>(block));
-    highCut.process(juce::dsp::ProcessContextReplacing<float>(block));
+    if (filterCuttofs[OutputFilters::HighCutF]->load() < 20000)
+    {
+        *highCut.state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(getSampleRate(), filterCuttofs[OutputFilters::HighCutF]->load(), 1.0f);
+        highCut.process(juce::dsp::ProcessContextReplacing<float>(block));
+    }
 
     // Doubler
     if(*apvts.getRawParameterValue("DOUBLER_SPREAD_ID") > 0.0)
@@ -457,13 +466,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout NamJUCEAudioProcessor::creat
     myNAM.createParameters(parameters);
     
     parameters.push_back(std::make_unique<juce::AudioParameterBool>("CAB_ON_ID", "CAB_ON", true, "CAB_ON"));
-
-    parameters.push_back(std::make_unique<juce::AudioParameterInt>("LOWCUT_ID", "LOWCUT", 20, 2000, 20));
-    parameters.push_back(std::make_unique<juce::AudioParameterInt>("HIGHCUT_ID", "HIGHCUT", 200, 20000, 20000));
+    parameters.push_back(std::make_unique<juce::AudioParameterInt>("LOWCUT_ID", "LOWCUT", 19, 2000, 19));
+    parameters.push_back(std::make_unique<juce::AudioParameterInt>("HIGHCUT_ID", "HIGHCUT", 200, 20001, 20001));
 
     auto normRange = NormalisableRange<float>(0.0, 20.0, 0.1f);
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>("DOUBLER_SPREAD_ID", "DOUBLER_SPREAD", normRange, 0.0));
-
     parameters.push_back(std::make_unique<juce::AudioParameterBool>("SMALL_WINDOW_ID", "SMALL_WINDOW", false, "SMALL_WINDOW"));
 
     tenBandEq.pushParametersToTree(parameters);
