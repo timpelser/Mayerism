@@ -31,7 +31,12 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-find_package(JUCE CONFIG REQUIRED)
+if(CMAKE_PREFIX_PATH)
+    find_package(JUCE CONFIG REQUIRED)
+else()
+    init_juce()
+    add_subdirectory(Modules/JUCE)
+endif()
 
 include_directories(SYSTEM Modules/NeuralAmpModelerCore)
 include_directories(SYSTEM Modules/AudioDSPTools)

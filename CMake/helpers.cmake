@@ -70,3 +70,20 @@ function(init_submodules)
 
     endif()
 endfunction(init_submodules)
+
+# JUCE Submodule Init Function
+function(init_juce)
+
+    if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Modules/JUCE/modules") # Check if submodule already initialized
+        message("\nInitializing JUCE submodule...\n")
+        find_program(GIT_CMD git REQUIRED)
+        execute_process(COMMAND "${GIT_CMD}" submodule update --init --recursive "${CMAKE_CURRENT_SOURCE_DIR}/Modules/JUCE")
+
+        if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Modules/JUCE/modules")
+            message("Failed to initialize ${CMAKE_CURRENT_SOURCE_DIR}/Modules/JUCE\n")
+        else()
+            message("JUCE submodule Initialized!\n")
+        endif()
+
+    endif()
+endfunction(init_juce)
