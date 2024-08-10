@@ -374,8 +374,8 @@ public:
 		if (slider.isBar())
 		{
 			g.setColour(juce::Colours::transparentBlack);
-			g.fillRect(slider.isHorizontal() ? Rectangle<float>(static_cast<float> (x), y + 0.5f, sliderPos - x, height - 1.0f)
-				: Rectangle<float>(x + 0.5f, sliderPos, width - 1.0f, y + (height - sliderPos)));
+			g.fillRect(slider.isHorizontal() ? juce::Rectangle<float>(static_cast<float> (x), y + 0.5f, sliderPos - x, height - 1.0f)
+				: juce::Rectangle<float>(x + 0.5f, sliderPos, width - 1.0f, y + (height - sliderPos)));
 		}
 		else
 		{
@@ -433,7 +433,7 @@ public:
 			{
 				//g.setColour(slider.findColour(Slider::thumbColourId));
 				//g.fillRect(Rectangle<float>(static_cast<float> (thumbWidth*3), static_cast<float> (thumbWidth)).withCentre(isThreeVal ? thumbPoint : maxPoint));
-				g.drawImage(thumbOn, Rectangle<float>(static_cast<float> (thumbWidth * 4), static_cast<float> (thumbWidth * 4)).withCentre(isThreeVal ? thumbPoint : maxPoint), false);
+				g.drawImage(thumbOn, juce::Rectangle<float>(static_cast<float> (thumbWidth * 4), static_cast<float> (thumbWidth * 4)).withCentre(isThreeVal ? thumbPoint : maxPoint), false);
 			}
 
 			if (isTwoVal || isThreeVal)
@@ -484,8 +484,8 @@ public:
 		if (slider.isBar())
 		{
 			g.setColour(juce::Colours::transparentBlack);
-			g.fillRect(slider.isHorizontal() ? Rectangle<float>(static_cast<float> (x), y + 0.5f, sliderPos - x, height - 1.0f)
-				: Rectangle<float>(x + 0.5f, sliderPos, width - 1.0f, y + (height - sliderPos)));
+			g.fillRect(slider.isHorizontal() ? juce::Rectangle<float>(static_cast<float> (x), y + 0.5f, sliderPos - x, height - 1.0f)
+				: juce::Rectangle<float>(x + 0.5f, sliderPos, width - 1.0f, y + (height - sliderPos)));
 		}
 		else
 		{
@@ -543,7 +543,7 @@ public:
 			{
 				//g.setColour(slider.findColour(Slider::thumbColourId));
 				//g.fillRect(Rectangle<float>(static_cast<float> (thumbWidth*3), static_cast<float> (thumbWidth)).withCentre(isThreeVal ? thumbPoint : maxPoint));
-				g.drawImage(thumbOff, Rectangle<float>(static_cast<float> (thumbWidth * 4), static_cast<float> (thumbWidth * 4)).withCentre(isThreeVal ? thumbPoint : maxPoint), false);
+				g.drawImage(thumbOff, juce::Rectangle<float>(static_cast<float> (thumbWidth * 4), static_cast<float> (thumbWidth * 4)).withCentre(isThreeVal ? thumbPoint : maxPoint), false);
 			}
 
 			if (isTwoVal || isThreeVal)

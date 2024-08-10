@@ -93,7 +93,7 @@ void TopBarComponent::openInfoWindow(juce::String m)
     label->setJustificationType(juce::Justification::centred);
     options.content.setOwned (label);
 
-    Rectangle<int> area (0, 0, 300, 200);
+    juce::Rectangle<int> area (0, 0, 300, 200);
 
     options.content->setSize (area.getWidth(), area.getHeight());
 
