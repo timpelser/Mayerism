@@ -11,13 +11,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED OFF)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-	include_directories(SYSTEM /usr/local/include)
+    include_directories(SYSTEM /usr/local/include)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	link_libraries(stdc++fs)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN)
+    cmake_policy(SET CMP0091 NEW)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE INTERNAL "")
+    add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN)
 else()
-	message(FATAL_ERROR "Unrecognized Platform!")
+    message(FATAL_ERROR "Unrecognized Platform!")
 endif()
 
 add_definitions(-w)
@@ -136,3 +138,26 @@ target_include_directories(${PROJECT_NAME}
     #INTERFACE
         #$<TARGET_PROPERTY:juce_plugin_modules,INCLUDE_DIRECTORIES>
     )
+
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	target_compile_definitions(${PROJECT_NAME} 
+    PRIVATE 
+        NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
+
+if (MSVC)
+	target_compile_options(${PROJECT_NAME} 
+    PRIVATE
+		"$<$<CONFIG:DEBUG>:/W4>"
+		"$<$<CONFIG:RELEASE>:/O2>"
+	)
+else()
+	target_compile_options(${PROJECT_NAME} 
+    PRIVATE
+		-Wall 
+		"$<$<CONFIG:DEBUG>:-Og;-ggdb>"
+		"$<$<CONFIG:RELWITHDEBINFO>:-Ofast>"
+		"$<$<CONFIG:RELEASE>:-Ofast>"
+	)
+endif()
