@@ -50,7 +50,7 @@ private:
 
     std::unique_ptr<AssetManager> assetManager;
 
-    juce::TooltipWindow tooltipWindow{ this, 200 };
+    //juce::TooltipWindow tooltipWindow{ this, 200 };
 
     knobLookAndFeel lnf {knobLookAndFeel::KnobTypes::Main};
 

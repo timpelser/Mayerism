@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
 
 set(PROJECT_NAME "NEURAL_AMP_MODELER")
-project(${PROJECT_NAME} VERSION 0.4.0)
+set(PLUGIN_VERSION 0.4.0)
+
+project(${PROJECT_NAME} VERSION ${PLUGIN_VERSION})
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/CMake/helpers.cmake")
 init_submodules()
@@ -22,7 +24,6 @@ else()
     message(FATAL_ERROR "Unrecognized Platform!")
 endif()
 
-add_definitions(-w)
 add_definitions(-DNAM_SAMPLE_FLOAT)
 add_definitions(-DDSP_SAMPLE_FLOAT)
 
@@ -38,7 +39,7 @@ add_subdirectory(Modules/NeuralAmpModelerCore/Dependencies/eigen)
 add_subdirectory(Modules/json)
 
 juce_add_plugin(${PROJECT_NAME}
-    VERSION 0.3.2
+    VERSION ${PLUGIN_VERSION}
     ICON_BIG "Assets/ICON.png"
     ICON_SMALL "Assets/ICON.png"
     COMPANY_NAME "Manos Labrakis"
@@ -112,7 +113,8 @@ target_compile_definitions(${PROJECT_NAME}
         JUCE_USE_CURL=0     # If you remove this, add `NEEDS_CURL TRUE` to the `juce_add_plugin` call
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_DISPLAY_SPLASH_SCREEN=0
-        JUCE_MODAL_LOOPS_PERMITTED=1)     
+        JUCE_MODAL_LOOPS_PERMITTED=1
+        PLUG_VERSION="${PLUGIN_VERSION}")     
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
