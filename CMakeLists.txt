@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.15)
 set(PROJECT_NAME "NEURAL_AMP_MODELER")
 project(${PROJECT_NAME} VERSION 0.4.0)
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/CMake/helpers.cmake")
+init_submodules()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED OFF)
 set(CMAKE_CXX_EXTENSIONS OFF)
