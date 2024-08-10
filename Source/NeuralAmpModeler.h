@@ -1,91 +1,94 @@
-#pragma once
+#ifndef __NEURAL_AMP_MODELER_H__
+#define __NEURAL_AMP_MODELER_H__
 
-#include "NeuralAmpModelerCore/NAM/namdsp.h"
-#include "NeuralAmpModelerCore/dsp/ImpulseResponse.h"
-#include "NeuralAmpModelerCore/dsp/NoiseGate.h"
-#include "NeuralAmpModelerCore/dsp/RecursiveLinearFilter.h"
-#include "NeuralAmpModelerCore/dsp/coredsp.h"
-#include "NeuralAmpModelerCore/dsp/wav.h"
+//#define NAM_SAMPLE_FLOAT
+//#define DSP_SAMPLE_FLOAT
+
+#include "ResamplingNAM.h"
+#include "ToneStack.h"
+#include "StatusedTrigger.h"
+#include "architecture.hpp"
+
 #include <juce_dsp/juce_dsp.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 
 class NeuralAmpModeler
 {
-public: 
-
+public:
 	NeuralAmpModeler();
 	~NeuralAmpModeler();
 
 	void prepare(juce::dsp::ProcessSpec& spec);
-	void loadModel(const std::string modelPath);
+	void processBlock(juce::AudioBuffer<float>& buffer);
 
-	void clear();
+	// Returns true if model staged successfully
+	bool loadModel(const std::string modelPath);
+
 	bool isModelLoaded();
+	void clearModel();
 
-	void processBlock(juce::AudioBuffer<float>& buffer, int inputChannels, int outputChannels);
-
+	void createParameters(std::vector<std::unique_ptr<juce::RangedAudioParameter>>& parameters);
 	void hookParameters(juce::AudioProcessorValueTreeState&);
 
-	enum EParams
+	enum Parameters
 	{
 		kInputLevel = 0,
 		kNoiseGateThreshold,
 		kToneBass,
 		kToneMid,
 		kToneTreble,
-		kOutputLevel,
-		
+		kOutputLevel,		
 		kEQActive,
-		kOutNorm,
-		kIRToggle,
-		kNumParams
+		kOutNorm
 	};
 
-	dsp::noise_gate::Trigger<float>* getTrigger();
+	StatusedTrigger* getTrigger() { return &mNoiseGateTrigger; };
 
 private:
 	double sampleRate;
-	juce::AudioBuffer<float> outputBuffer; 
+	int samplesPerBlock;
+	juce::AudioBuffer<float> outputBuffer;
 
 	//Parameter Pointers
 	std::atomic<float>* params[8];	
 
-	// Noise gates
-	dsp::noise_gate::Trigger<float> mNoiseGateTrigger;
-	dsp::noise_gate::Gain<float> mNoiseGateGain;
+	bool toneStackActive {true};
+	bool outputNormalized {false};
 	bool noiseGateActive {false};
 
-	//Noise Gate Parameters
-	const double time = 0.01;
-	const double ratio = 0.1; // Quadratic...
-    const double openTime = 0.005;
-    const double holdTime = 0.01;
-    const double closeTime = 0.05;
-
-	std::unique_ptr<DSP<float>> mNAM;
-	bool outputNormalized {false};
 	bool modelLoaded {false};
+	bool shouldRemoveModel {false};
 
-	// Tone Stack modules
-	recursive_linear_filter::LowShelf<float> mToneBass;
-	recursive_linear_filter::Peaking<float> mToneMid;
-	recursive_linear_filter::HighShelf<float> mToneTreble;
+	std::unique_ptr<ResamplingNAM> mModel, mStagedModel;
+	std::unique_ptr<dsp::tone_stack::AbstractToneStack> mToneStack;
 
-	bool toneStackActive {true};
+	// Noise gate
+	StatusedTrigger mNoiseGateTrigger;
+	dsp::noise_gate::Gain mNoiseGateGain;
 
-	//Tone Stack Parameters
-	const double bassFrequency = 150.0;
-	const double midFrequency = 425.0;
-	const double trebleFrequency = 1800.0;
-	const double bassQuality = 0.707;
-	double midQuality = 0.7;
-	const double trebleQuality = 0.707;
+	// Noise gate Params
+	const double ns_time = 0.01;
+	const double ns_ratio = 0.1; // Quadratic...
+	const double ns_openTime = 0.005;
+	const double ns_holdTime = 0.01;
+	const double ns_closeTime = 0.05;
 
-	std::unordered_map<std::string, float> mNAMParams = { {"Input", 0.0}, {"Output", 0.0} };
-
-// Private Functions
 private:
+
+	// Moves DSP modules from staging area to the main area.
+	// Also deletes DSP modules that are flagged for removal.
+	// Exists so that we don't try to use a DSP module that's only
+	// partially-instantiated.
+	void applyDSPStaging();
+
+	void resetModel();
+
+	void normalizeOutput(float** input, int numChannels, int numSamples);
+
 	void updateParameters();
 	double dB_to_linear(double db_value);
 	void doDualMono(juce::AudioBuffer<float>& mainBuffer, float** input);
 };
+
+
+#endif

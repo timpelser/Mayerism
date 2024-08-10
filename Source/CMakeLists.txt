@@ -1,7 +1,12 @@
 target_sources(${PROJECT_NAME}
 PRIVATE
+    ResamplingNAM.h
     NeuralAmpModeler.cpp
     NeuralAmpModeler.h
+    StatusedTrigger.cpp
+    StatusedTrigger.h
+    ToneStack.cpp
+    ToneStack.h
     NamEditor.h
     NamEditor.cpp
     PluginEditor.cpp

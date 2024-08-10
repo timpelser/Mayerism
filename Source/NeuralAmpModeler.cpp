@@ -1,21 +1,13 @@
-#include <algorithm>
-#include <cmath>
+#include "NeuralAmpModeler.h"
 #include <filesystem>
 #include <iostream>
-#include <utility>
-
-#include "NeuralAmpModelerCore/NAM/activations.h"
-#include "NeuralAmpModeler.h"
-#include "architecture.hpp"
 
 NeuralAmpModeler::NeuralAmpModeler()
-	: mNAM(nullptr),
-    mNoiseGateTrigger(),
-    mToneBass(),
-    mToneMid(),
-    mToneTreble()
 {
-    this->mNoiseGateTrigger.AddListener(&this->mNoiseGateGain);
+    mToneStack = std::make_unique<dsp::tone_stack::BasicNamToneStack>();
+    nam::activations::Activation::enable_fast_tanh();    
+
+    mNoiseGateTrigger.AddListener(&mNoiseGateGain);
 }
 
 NeuralAmpModeler::~NeuralAmpModeler()
@@ -26,57 +18,21 @@ NeuralAmpModeler::~NeuralAmpModeler()
 void NeuralAmpModeler::prepare(juce::dsp::ProcessSpec& spec)
 {
     this->sampleRate = spec.sampleRate;
+    this->samplesPerBlock = spec.maximumBlockSize;
 
     outputBuffer.setSize(1, spec.maximumBlockSize, false, false, false);
     outputBuffer.clear();
+
+    resetModel();
+    mToneStack->Reset(this->sampleRate, this->samplesPerBlock);
+
+    mNoiseGateTrigger.SetSampleRate(this->sampleRate);
 }
 
-void NeuralAmpModeler::loadModel(const std::string modelPath)
+void NeuralAmpModeler::processBlock(juce::AudioBuffer<float>& buffer)
 {
-    auto dspPath = std::filesystem::u8path(modelPath);
-    mNAM = get_dsp<float>(dspPath);
-
-    if(mNAM != nullptr)
-        modelLoaded = true;
-}
-
-void NeuralAmpModeler::clear()
-{
-    modelLoaded = false;
-    mNAM = nullptr;    
-}
-
-bool NeuralAmpModeler::isModelLoaded()
-{
-    return modelLoaded;
-}
-
-void NeuralAmpModeler::hookParameters(juce::AudioProcessorValueTreeState& apvts)
-{
-    params[EParams::kInputLevel] = apvts.getRawParameterValue("INPUT_ID");
-    params[EParams::kNoiseGateThreshold] = apvts.getRawParameterValue("NGATE_ID");
-    params[EParams::kToneBass] = apvts.getRawParameterValue("BASS_ID");
-    params[EParams::kToneMid] = apvts.getRawParameterValue("MIDDLE_ID");
-    params[EParams::kToneTreble] = apvts.getRawParameterValue("TREBLE_ID");
-    params[EParams::kOutputLevel] = apvts.getRawParameterValue("OUTPUT_ID");
-
-    params[EParams::kEQActive] = apvts.getRawParameterValue("TONE_STACK_ON_ID");
-    params[EParams::kOutNorm] = apvts.getRawParameterValue("NORMALIZE_ID");
-
-    DBG("NAM Parameters Hooked!");
-}
-
-void NeuralAmpModeler::processBlock(juce::AudioBuffer<float>& buffer, int inputChannels, int outputChannels)
-{
-    updateParameters();
-
-    juce::ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels = inputChannels;
-    auto totalNumOutputChannels = outputChannels;
-
-
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear(i, 0, buffer.getNumSamples());
+    this->applyDSPStaging();
+    this->updateParameters();
 
     auto* channelDataLeft = buffer.getWritePointer(0);
     auto* channelDataRight = buffer.getWritePointer(1);
@@ -84,80 +40,186 @@ void NeuralAmpModeler::processBlock(juce::AudioBuffer<float>& buffer, int inputC
     
     float** inputPointer = &channelDataLeft;
     float** outputPointer = &outputData;
-
-    
-    //Noise Gate Trigger
+    float** processedOutput;
     float** triggerOutput = inputPointer;
-    if (noiseGateActive)
+
+    if (noiseGateActive) // Process gate trigger
+        triggerOutput = mNoiseGateTrigger.Process(inputPointer, 1, buffer.getNumSamples());
+
+    if (mModel != nullptr)
     {
-        const dsp::noise_gate::TriggerParams<float> triggerParams(time, params[EParams::kNoiseGateThreshold]->load(), ratio, openTime, holdTime, closeTime);
-        this->mNoiseGateTrigger.SetParams(triggerParams);
-        this->mNoiseGateTrigger.SetSampleRate(sampleRate);
-        triggerOutput = this->mNoiseGateTrigger.Process(inputPointer, 1, buffer.getNumSamples());
-    } 
-    
-    if (mNAM != nullptr)
-    {
-        mNAM->SetNormalize(outputNormalized);
-        mNAM->process(triggerOutput, outputPointer, 1, buffer.getNumSamples(), dB_to_linear(params[EParams::kInputLevel]->load()), 
-            dB_to_linear(params[EParams::kOutputLevel]->load()), mNAMParams);
-        mNAM->finalize_(buffer.getNumSamples());
+        // Input Gain
+        buffer.applyGain(dB_to_linear(params[Parameters::kInputLevel]->load()));
+
+        mModel->process(*inputPointer, *outputPointer, buffer.getNumSamples());
+        mModel->finalize_(buffer.getNumSamples());
+
+        // Normalize loudness
+        if (this->outputNormalized)
+            normalizeOutput(outputPointer, 1, buffer.getNumSamples());
+        
+
+        processedOutput = outputPointer;
     }
     else
-        outputPointer = triggerOutput;
-
-    // Apply the noise gate    
-    float** gateGainOutput = noiseGateActive ? mNoiseGateGain.Process(outputPointer, 1, buffer.getNumSamples()) : outputPointer;
-
-    if(toneStackActive)
     {
-        //Apply the tone stack
-        float** bassPointers = this->mToneBass.Process(gateGainOutput, 1, buffer.getNumSamples());
-        float** midPointers = this->mToneMid.Process(bassPointers, 1, buffer.getNumSamples());
-        float** treblePointers = this->mToneTreble.Process(midPointers, 1, buffer.getNumSamples()); 
+        processedOutput = inputPointer;
+    }
 
-        doDualMono(buffer, treblePointers);
-    } 
-    else
-        doDualMono(buffer, gateGainOutput);
+    // Apply the noise gate
+    float** gateGainOutput = noiseGateActive ? mNoiseGateGain.Process(processedOutput, 1, buffer.getNumSamples()) : processedOutput;
 
-    
+    // Tone Stack
+    float** toneStackOutPointers = toneStackActive ? mToneStack->Process(gateGainOutput, 1, buffer.getNumSamples()) : gateGainOutput;
+
+    doDualMono(buffer, toneStackOutPointers);
+
+    // Output Gain
+    buffer.applyGain(dB_to_linear(params[Parameters::kOutputLevel]->load()));
 }
 
-dsp::noise_gate::Trigger<float>* NeuralAmpModeler::getTrigger()
+bool NeuralAmpModeler::loadModel(const std::string modelPath)
 {
-    return &mNoiseGateTrigger;
+    try
+    {
+        auto dspPath = std::filesystem::u8path(modelPath);
+        std::unique_ptr<nam::DSP> model = nam::get_dsp(dspPath);
+        std::unique_ptr<ResamplingNAM> temp = std::make_unique<ResamplingNAM>(std::move(model), this->sampleRate);
+
+        temp->Reset(this->sampleRate, this->samplesPerBlock);
+
+        mStagedModel = std::move(temp);
+
+        return true;
+
+    }
+    catch (std::runtime_error& e)
+    {
+        if (mStagedModel != nullptr)
+        {
+            mStagedModel = nullptr;
+        }
+
+        std::cout << "woops" << std::endl;
+        std::cerr << "Failed to read DSP module" << std::endl;
+        std::cerr << e.what() << std::endl;
+
+        return false;
+    }
+}
+
+bool NeuralAmpModeler::isModelLoaded()
+{
+    return this->modelLoaded;
+}
+
+void NeuralAmpModeler::clearModel()
+{
+    this->shouldRemoveModel = true;
+}
+
+void NeuralAmpModeler::applyDSPStaging()
+{
+  // Remove marked modules
+  if (shouldRemoveModel)
+  {
+    mModel = nullptr;
+    shouldRemoveModel = false;
+    //_UpdateLatency();
+  }
+
+  // Move things from staged to live
+  if (mStagedModel != nullptr)
+  {
+    // Move from staged to active DSP
+    mModel = std::move(mStagedModel);
+    mStagedModel = nullptr;
+    modelLoaded = true;
+    //_UpdateLatency();
+  }  
+}
+
+void NeuralAmpModeler::resetModel()
+{
+    if (mStagedModel != nullptr)    
+        mStagedModel->Reset(this->sampleRate, this->samplesPerBlock);
+
+    else if (mModel != nullptr)    
+        mModel->Reset(this->sampleRate, this->samplesPerBlock);    
+}
+
+void NeuralAmpModeler::normalizeOutput(float** input, int numChannels, int numSamples)
+{
+    if (!mModel)
+        return;
+    if (!mModel->HasLoudness())
+        return;
+        
+    const double loudness = mModel->GetLoudness();
+    const double targetLoudness = -18.0;
+    const double gain = pow(10.0, (targetLoudness - loudness) / 20.0);
+
+    for (int c = 0; c < numChannels; c++)
+    {
+        for (int f = 0; f < numSamples; f++)
+        {
+            input[c][f] *= gain;
+        }
+    }
 }
 
 void NeuralAmpModeler::updateParameters()
 {
-    outputNormalized = bool(params[EParams::kOutNorm]->load());
-
-    //Noise Gate
-    noiseGateActive = int(params[EParams::kNoiseGateThreshold]->load()) < -100 ? false : true;
+    outputNormalized = bool(params[Parameters::kOutNorm]->load());
 
     //Tone Stack
-    toneStackActive = bool(params[EParams::kEQActive]->load());
+    toneStackActive = bool(params[Parameters::kEQActive]->load());
 
-    // Translate params from knob 0-10 to dB.
-    // Tuned ranges based on my ear. E.g. seems treble doesn't need nearly as
-    // much swing as bass can use.
-    const double bassGainDB = 4.0 * (params[EParams::kToneBass]->load() - 5.0); // +/- 20
-    const double midGainDB = 3.0 * (params[EParams::kToneMid]->load() - 5.0); // +/- 15
-    const double trebleGainDB = 2.0 * (params[EParams::kToneTreble]->load() - 5.0); // +/- 10
-    
-    // Wider EQ on mid bump up to sound less honky.
-    midQuality = midGainDB < 0.0 ? 1.5 : 0.7;    
+    //Noise Gate
+    noiseGateActive = int(params[Parameters::kNoiseGateThreshold]->load()) < -100 ? false : true;
 
-    // Define filter parameters
-    recursive_linear_filter::BiquadParams<float> bassParams(sampleRate, bassFrequency, bassQuality, bassGainDB);
-    recursive_linear_filter::BiquadParams<float> midParams(sampleRate, midFrequency, midQuality, midGainDB);
-    recursive_linear_filter::BiquadParams<float> trebleParams(sampleRate, trebleFrequency, trebleQuality, trebleGainDB);
+    if (toneStackActive)
+    {
+        mToneStack->SetParam("bass", params[Parameters::kToneBass]->load());
+        mToneStack->SetParam("middle", params[Parameters::kToneMid]->load());
+        mToneStack->SetParam("treble", params[Parameters::kToneTreble]->load());
+    }
 
-    // Set tone stack parameters
-    this->mToneBass.SetParams(bassParams);
-    this->mToneMid.SetParams(midParams);
-    this->mToneTreble.SetParams(trebleParams);
+    if (noiseGateActive)
+    {
+        const dsp::noise_gate::TriggerParams triggerParams(this->ns_time, params[Parameters::kNoiseGateThreshold]->load(), 
+            this->ns_ratio, this->ns_openTime, this->ns_holdTime, this->ns_closeTime);
+
+        mNoiseGateTrigger.SetParams(triggerParams);
+    }
+}
+
+void NeuralAmpModeler::createParameters(std::vector<std::unique_ptr<juce::RangedAudioParameter>>& parameters)
+{
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("INPUT_ID", "INPUT", -20.0f, 20.0f, 0.0f));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("NGATE_ID", "NGATE", -101.0f, 0.0f, -80.0f));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("BASS_ID", "BASS", 0.0f, 10.0f, 5.0f));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("MIDDLE_ID", "MIDDLE", 0.0f, 10.0f, 5.0f));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("TREBLE_ID", "TREBLE", 0.0f, 10.0f, 5.0f));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("OUTPUT_ID", "OUTPUT", -40.0f, 40.0f, 0.0f));
+    parameters.push_back(std::make_unique<juce::AudioParameterBool>("TONE_STACK_ON_ID", "TONE_STACK_ON", true, "TONE_STACK_ON"));
+    parameters.push_back(std::make_unique<juce::AudioParameterBool>("NORMALIZE_ID", "NORMALIZE", false, "NORMALIZE"));
+
+    DBG("NAM Parameters Created!");
+}
+
+void NeuralAmpModeler::hookParameters(juce::AudioProcessorValueTreeState& apvts)
+{
+    params[Parameters::kInputLevel] = apvts.getRawParameterValue("INPUT_ID");
+    params[Parameters::kNoiseGateThreshold] = apvts.getRawParameterValue("NGATE_ID");
+    params[Parameters::kToneBass] = apvts.getRawParameterValue("BASS_ID");
+    params[Parameters::kToneMid] = apvts.getRawParameterValue("MIDDLE_ID");
+    params[Parameters::kToneTreble] = apvts.getRawParameterValue("TREBLE_ID");
+    params[Parameters::kOutputLevel] = apvts.getRawParameterValue("OUTPUT_ID");
+    params[Parameters::kEQActive] = apvts.getRawParameterValue("TONE_STACK_ON_ID");
+    params[Parameters::kOutNorm] = apvts.getRawParameterValue("NORMALIZE_ID");
+
+    DBG("NAM Parameters Hooked!");
 }
 
 double NeuralAmpModeler::dB_to_linear(double db_value)

@@ -128,11 +128,11 @@ void NamJUCEAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
         if(lastModelPath != "null")
             myNAM.loadModel(lastModelPath);
         else
-            myNAM.clear();
+            myNAM.clearModel();
     }
     catch(const std::exception& e)
     {
-        myNAM.clear();
+        myNAM.clearModel();
     }
 
     //Load last IR
@@ -152,7 +152,7 @@ void NamJUCEAudioProcessor::loadFromPreset(juce::String modelPath, juce::String 
         juce::File fileCheck{modelPath};
         if(!fileCheck.exists())
         {           
-            myNAM.clear(); 
+            myNAM.clearModel(); 
             lastModelName = "Model File Missing!"; 
             lastModelPath = modelPath.toStdString();  
         }
@@ -165,7 +165,7 @@ void NamJUCEAudioProcessor::loadFromPreset(juce::String modelPath, juce::String 
     }
     else
     {
-        myNAM.clear();
+        myNAM.clearModel();
         lastModelPath = "null";
         lastModelName = "";
     }
@@ -217,15 +217,28 @@ void NamJUCEAudioProcessor::loadNamModel(juce::File modelToLoad)
     addons.setProperty ("model_path", juce::String(lastModelPath), nullptr);
 }
 
-bool NamJUCEAudioProcessor::getIrStatus()
-{
-    return irLoaded;
-}
-
 bool NamJUCEAudioProcessor::getTriggerStatus()
 {
     auto t_state = myNAM.getTrigger();
     return t_state->isGating();
+}
+
+bool NamJUCEAudioProcessor::getNamModelStatus()
+{
+    return myNAM.isModelLoaded();
+}
+
+void NamJUCEAudioProcessor::clearNAM()
+{
+    this->suspendProcessing(true);
+    myNAM.clearModel();
+    lastModelPath = "null";
+    lastModelName = "null";
+
+    auto addons = apvts.state.getOrCreateChildWithName ("addons", nullptr);    
+    addons.setProperty ("model_path", juce::String(lastModelPath), nullptr);
+
+    this->suspendProcessing(false);
 }
 
 
@@ -251,6 +264,11 @@ void NamJUCEAudioProcessor::clearIR()
 
     auto addons = apvts.state.getOrCreateChildWithName ("addons", nullptr);    
     addons.setProperty ("ir_path", juce::String(lastIrPath), nullptr);
+}
+
+bool NamJUCEAudioProcessor::getIrStatus()
+{
+    return irLoaded;
 }
 
 void NamJUCEAudioProcessor::releaseResources()
@@ -299,8 +317,7 @@ void NamJUCEAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     auto* channelDataLeft = buffer.getWritePointer(0);
     auto* channelDataRight = buffer.getWritePointer(1);
 
-    if(myNAM.isModelLoaded())
-        myNAM.processBlock(buffer, totalNumInputChannels, totalNumOutputChannels);
+    myNAM.processBlock(buffer);
 
     if(bool(*apvts.getRawParameterValue("CAB_ON_ID")) && irLoaded)
     {
@@ -420,37 +437,12 @@ void NamJUCEAudioProcessor::setStateInformation (const void* data, int sizeInByt
         }
 }
 
-bool NamJUCEAudioProcessor::getNamModelStatus()
-{
-    return myNAM.isModelLoaded();
-}
-
-void NamJUCEAudioProcessor::clearNAM()
-{
-    this->suspendProcessing(true);
-    myNAM.clear();
-    lastModelPath = "null";
-    lastModelName = "null";
-
-    auto addons = apvts.state.getOrCreateChildWithName ("addons", nullptr);    
-    addons.setProperty ("model_path", juce::String(lastModelPath), nullptr);
-
-    this->suspendProcessing(false);
-}
-
 juce::AudioProcessorValueTreeState::ParameterLayout NamJUCEAudioProcessor::createParameters()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> parameters;
 
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("INPUT_ID", "INPUT", -20.0f, 20.0f, 0.0f));
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("NGATE_ID", "NGATE", -101.0f, 0.0f, -80.0f));
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("BASS_ID", "BASS", 0.0f, 10.0f, 5.0f));
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("MIDDLE_ID", "MIDDLE", 0.0f, 10.0f, 5.0f));
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("TREBLE_ID", "TREBLE", 0.0f, 10.0f, 5.0f));
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("OUTPUT_ID", "OUTPUT", -40.0f, 40.0f, 0.0f));
-
-    parameters.push_back(std::make_unique<juce::AudioParameterBool>("TONE_STACK_ON_ID", "TONE_STACK_ON", true, "TONE_STACK_ON"));
-    parameters.push_back(std::make_unique<juce::AudioParameterBool>("NORMALIZE_ID", "NORMALIZE", false, "NORMALIZE"));
+    myNAM.createParameters(parameters);
+    
     parameters.push_back(std::make_unique<juce::AudioParameterBool>("CAB_ON_ID", "CAB_ON", true, "CAB_ON"));
 
     parameters.push_back(std::make_unique<juce::AudioParameterInt>("LOWCUT_ID", "LOWCUT", 20, 2000, 20));
