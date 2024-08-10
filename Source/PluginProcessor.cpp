@@ -252,15 +252,20 @@ void NamJUCEAudioProcessor::clearNAM()
 
 void NamJUCEAudioProcessor::loadImpulseResponse(juce::File irToLoad)
 {
+    this->suspendProcessing(true);
+
+    this->clearIR();
     std::string ir_path = irToLoad.getFullPathName().toStdString();
     cab.loadImpulseResponse(irToLoad, juce::dsp::Convolution::Stereo::no, juce::dsp::Convolution::Trim::no, 0, juce::dsp::Convolution::Normalise::yes);
     irLoaded = true;
+    irFound = true;
     lastIrPath = ir_path;
     lastIrName = irToLoad.getFileNameWithoutExtension().toStdString();
 
     auto addons = apvts.state.getOrCreateChildWithName ("addons", nullptr);    
     addons.setProperty ("ir_path", juce::String(lastIrPath), nullptr);
-    
+
+    this->suspendProcessing(false);
 }
 
 void NamJUCEAudioProcessor::clearIR()
@@ -331,7 +336,7 @@ void NamJUCEAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     {
         cab.process(juce::dsp::ProcessContextReplacing<float>(block));
         if(irFound)
-            buffer.applyGain(juce::Decibels::decibelsToGain(9.0f));
+            buffer.applyGain(juce::Decibels::decibelsToGain(6.0f));
     }
 
     //Ten-Band EQ Module
