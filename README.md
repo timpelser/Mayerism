@@ -3,50 +3,54 @@
 A JUCE implementation of Steven Atkinson's [NeuralAmpModelerPlugin](https://github.com/sdatkinson/NeuralAmpModelerPlugin). This Repository is still a work-in-proress, but the basic functionality is there.
 
 </br>
-
 <p align="center">
-  <img src="https://loudsample.com/images/assets/nam/Screenshot_20240226_125626.png" />
+    <img src="https://i.allthepics.net/2024/08/11/nam-juce.gif" alt="animated" />
 </p>
 
 
-## Building with CMake
-
-
-### Prerequisites
-
-
-A global installation of [JUCE](https://github.com/juce-framework/JUCE) is required in order to build the project using CMake. After cloning the JUCE repo, a global installation can be built by running:
+## Building
 
 ```bash
-cmake -B cmake-build-install -DCMAKE_INSTALL_PREFIX=/path/to/JUCE/install
-cmake --build cmake-build-install --target install
+git clone https://github.com/tr3m/nam-juce
+cd nam-juce
 ```
 
-### Building on Windows
+### Windows
 
 ```bash
-git submodule update --init --recursive
-cmake -B build -DCMAKE_PREFIX_PATH=/path/to/JUCE/install
-cmake --build build --config Release
+cmake -B build
+cmake --build build --config Release -j %NUMBER_OF_PROCESSORS% 
 ```
+The `%NUMBER_OF_PROCESSORS%` environment variable is for cmd. The Powershell/New Windows Terminal equivalent is `$ENV:NUMBER_OF_PROCESSORS`.
 
-### Building on MacOS/Linux
+### MacOS
 
 ```bash
-git submodule update --init --recursive
-cmake -B build -DCMAKE_PREFIX_PATH=/path/to/JUCE/install
-cmake --build build
+cmake -B build
+cmake --build build -- -j $(sysctl -n hw.physicalcpu)
 ```
 
-## Building with the Projucer
-
-The project can also be build with the Projucer instead of CMake. Exporters for all platforms are set within the .jucer file including relative paths for all libraries/dependencies so no additional configurations are needed.
-
-The git submodules still need to be initialized before attempting to build. Initialize by running:
+### Linux
 
 ```bash
-git submodule update --init --recursive
+cmake -B build
+cmake --build build -- -j $(nproc)
 ```
+
+Git sumbodules dont need to be initialized manually. CMake will initialize the appropriate submodules depending on the defined flags.
+
+### Optional CMake Flags
+
+* `-DUSE_NATIVE_ARCH=1`
+    * Enables processor-specific optimizations for modern x64 processors.
+* `-DCMAKE_PREFIX_PATH=<PATH/TO/JUCE>`
+    * Use a global installation of JUCE instead of the repo submodule.
+* `-DASIO_PATH=<PATH_TO_ASIO_SDK>` (Windows only)
+    * Enables ASIO support for the Standalone Application.
+
+<br/>
+
+The resulting binaries can be found under <u>`build/NEURAL_AMP_MODELER_artefacts/Release/`</u>.
 
 ## Supported Platforms
 
@@ -60,9 +64,9 @@ git submodule update --init --recursive
 - AU
 - Standalone Application
 
-Note: The Standalone application doesn't support ASIO by default. For ASIO support the `JUCE_ASIO` flag must be set in the `juce_audio_devices` module. 
+<br/>
 
-Additionally, a path to Steingberg's ASIO SDK needs to be provided to CMake/Projucer.
+Note: The Standalone application for Windows doesn't support ASIO by default. For ASIO support a path to Steingberg's ASIO SDK needs to be provided by using the `ASIO_PATH` flag with CMake.
 
-More plugin formats like LV2 and VST(Legacy) can be built by providing the appropriate SDKs.
+More plugin formats like LV2 and Legacy VST can be built by providing the appropriate SDK paths and setting the corresponding JUCE flags in the main `CMakeLists.txt` file.
 
