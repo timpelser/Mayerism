@@ -22,6 +22,7 @@ PRIVATE
     TopBarComponent.cpp
     TopBarComponent.h
     DoublerProcessor.h
+    StandaloneSettingsComponent.h
     architecture.hpp
 )
 

@@ -3,7 +3,7 @@
 #include "MyLookAndFeel.h"
 #include "AssetManager.h"
 #include "PresetManager/PresetManagerComponent.h"
-#include "juce_audio_plugin_client/Standalone/juce_StandaloneFilterWindow.h"
+#include "StandaloneSettingsComponent.h"
 
 class TopBarComponent : public juce::AudioProcessorEditor,
                         public juce::ComboBox::Listener
@@ -46,5 +46,8 @@ private:
     juce::URL modelsURL {"https://tonehunt.org"};
 
     NamJUCEAudioProcessor& audioProcessor;
+
+    void showSettings();
+    
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TopBarComponent)
 };

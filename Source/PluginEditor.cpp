@@ -5,20 +5,22 @@
 NamJUCEAudioProcessorEditor::NamJUCEAudioProcessorEditor (NamJUCEAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p), namEditor(p)
 {
-    setSize (950, 650);
-    setResizable(false, false);
+    // Workaround for window size issues when using Native Title Bar on linux...
     setResizeLimits(950, 650, 950, 650);
+    setResizable(true, false);
+
+    setSize (950, 650);
+
     if(JUCEApplication::isStandaloneApp())
     {
         auto* topLevel = juce::TopLevelWindow::getTopLevelWindow(0);
         if (topLevel) topLevel->setUsingNativeTitleBar(true);
     }
 
-    
     //Main NAM Editor
     addAndMakeVisible(&namEditor);
     namEditor.setBounds(getLocalBounds());
-    
+
     //Resize Button
     resizeButton.reset(new juce::ImageButton("ResizeBtn"));
     addAndMakeVisible(resizeButton.get());
@@ -51,7 +53,6 @@ void NamJUCEAudioProcessorEditor::paint (juce::Graphics& g)
 
 void NamJUCEAudioProcessorEditor::resized()
 {
-    
 }
 
 void NamJUCEAudioProcessorEditor::setPluginSize(bool makeSmall)

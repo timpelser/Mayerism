@@ -65,8 +65,8 @@ void TopBarComponent::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
         switch(selection)
         {
         case DropdownOptions::AudioSettings:
-            if(JUCEApplication::isStandaloneApp())
-                juce::StandalonePluginHolder::getInstance()->showAudioSettingsDialog();
+            if(JUCEApplication::isStandaloneApp())            
+                showSettings();            
             break;
         case DropdownOptions::GetModels:
             modelsURL.launchInDefaultBrowser();
@@ -101,10 +101,55 @@ void TopBarComponent::openInfoWindow(juce::String m)
     options.dialogBackgroundColour        = juce::Colours::darkgrey;
     options.escapeKeyTriggersCloseButton  = true;
     options.useNativeTitleBar             = true;
-    options.resizable                     = false;
+    options.resizable                     = true;
 
     dialogWindow = options.launchAsync();
+    //dialogWindow->setResizable(true, false);
+    dialogWindow->setResizeLimits(300, 200, 300, 200);
 
     if (dialogWindow != nullptr)
         dialogWindow->centreWithSize (300, 200);
+}
+
+void TopBarComponent::showSettings()
+{
+    if(JUCEApplication::isStandaloneApp())
+    {
+        auto pluginHolderInstance = juce::StandalonePluginHolder::getInstance();
+        auto channelConfiguration = pluginHolderInstance->channelConfiguration;
+        auto* deviceManager = &pluginHolderInstance->deviceManager;
+
+        DialogWindow::LaunchOptions o;
+
+            int maxNumInputs = 0, maxNumOutputs = 0;
+
+            if (channelConfiguration.size() > 0)
+            {
+                auto& defaultConfig = channelConfiguration.getReference (0);
+
+                maxNumInputs  = jmax (0, (int) defaultConfig.numIns);
+                maxNumOutputs = jmax (0, (int) defaultConfig.numOuts);
+            }
+
+            if (auto* bus = pluginHolderInstance->processor->getBus (true, 0))
+                maxNumInputs = jmax (0, bus->getDefaultLayout().size());
+
+            if (auto* bus = pluginHolderInstance->processor->getBus (false, 0))
+                maxNumOutputs = jmax (0, bus->getDefaultLayout().size());
+
+            auto content = std::make_unique<StandaloneSettingsComponent> (*pluginHolderInstance, *deviceManager, maxNumInputs, maxNumOutputs);
+
+            content->setSize(500, 500);
+
+            o.content.setOwned (content.release());
+
+            o.dialogTitle                   = TRANS("Audio/MIDI Settings");
+            o.dialogBackgroundColour        = o.content->getLookAndFeel().findColour (ResizableWindow::backgroundColourId);
+            o.escapeKeyTriggersCloseButton  = true;
+            o.useNativeTitleBar             = true;
+            o.resizable                     = true;
+
+
+            o.launchAsync();
+    }
 }
