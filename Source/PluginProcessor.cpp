@@ -27,6 +27,12 @@ NamJUCEAudioProcessor::NamJUCEAudioProcessor()
 {
     filterCuttofs[OutputFilters::LowCutF] = apvts.getRawParameterValue("LOWCUT_ID");
     filterCuttofs[OutputFilters::HighCutF] = apvts.getRawParameterValue("HIGHCUT_ID");
+
+    if(JUCEApplication::isStandaloneApp())
+    {
+        auto* topLevel = juce::TopLevelWindow::getTopLevelWindow(0);
+        if (topLevel) topLevel->setUsingNativeTitleBar(true);
+    }
 }
 
 NamJUCEAudioProcessor::~NamJUCEAudioProcessor()

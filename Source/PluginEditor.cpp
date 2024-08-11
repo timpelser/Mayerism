@@ -5,17 +5,10 @@
 NamJUCEAudioProcessorEditor::NamJUCEAudioProcessorEditor (NamJUCEAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p), namEditor(p)
 {
-    // Workaround for window size issues when using Native Title Bar on linux...
-    setResizeLimits(950, 650, 950, 650);
-    setResizable(true, false);
+    setResizeLimits(int(0.8*950), int(0.8*650), 950, 650);
+    setResizable(false, false);
 
     setSize (950, 650);
-
-    if(JUCEApplication::isStandaloneApp())
-    {
-        auto* topLevel = juce::TopLevelWindow::getTopLevelWindow(0);
-        if (topLevel) topLevel->setUsingNativeTitleBar(true);
-    }
 
     //Main NAM Editor
     addAndMakeVisible(&namEditor);
