@@ -1,33 +1,28 @@
 #include "PresetManager.h"
 
-const juce::File PresetManager::defaultPresetDirectory {juce::File::getSpecialLocation(juce::File::SpecialLocationType::userHomeDirectory)
-    .getChildFile("Neural Amp Modeler").getChildFile("Presets")};
+const juce::File PresetManager::defaultPresetDirectory{
+    juce::File::getSpecialLocation(juce::File::SpecialLocationType::userHomeDirectory).getChildFile("Neural Amp Modeler").getChildFile("Presets")};
 
 const juce::String PresetManager::presetExtension{"nampreset"};
-const juce::String PresetManager::presetNameProperty{ "presetName" };
+const juce::String PresetManager::presetNameProperty{"presetName"};
 
-PresetManager::PresetManager(juce::AudioProcessorValueTreeState& apvts):
-    apvts(apvts)
+PresetManager::PresetManager(juce::AudioProcessorValueTreeState& apvts) : apvts(apvts)
 {
-   if (!defaultPresetDirectory.exists())
-   {
-    const auto result = defaultPresetDirectory.createDirectory();
-    if (result.failed())
+    if (!defaultPresetDirectory.exists())
     {
-        DBG("Error creating Preset Directory: " + result.getErrorMessage());
-        jassertfalse;
+        const auto result = defaultPresetDirectory.createDirectory();
+        if (result.failed())
+        {
+            DBG("Error creating Preset Directory: " + result.getErrorMessage());
+            jassertfalse;
+        }
     }
-   }
 
-   apvts.state.addListener(this);
-   currentPreset.referTo(apvts.state.getPropertyAsValue(presetNameProperty, nullptr));
-
+    apvts.state.addListener(this);
+    currentPreset.referTo(apvts.state.getPropertyAsValue(presetNameProperty, nullptr));
 }
 
-PresetManager::~PresetManager()
-{
-
-}
+PresetManager::~PresetManager() {}
 
 void PresetManager::savePreset(const juce::String& presetName)
 {
@@ -36,7 +31,7 @@ void PresetManager::savePreset(const juce::String& presetName)
 
     currentPreset.setValue(presetName);
     const auto stateXML = apvts.copyState().createXml();
-    
+
     // Stuff to exclude from preset file
     auto search_paths = stateXML->getChildByName("search_paths");
     stateXML->removeChildElement(search_paths, true);
@@ -84,7 +79,7 @@ void PresetManager::loadPreset(const juce::String& presetName)
         return;
     }
 
-    juce::XmlDocument xmlDocument { presetFile };
+    juce::XmlDocument xmlDocument{presetFile};
     const auto valueTreeToLoad = juce::ValueTree::fromXml(*xmlDocument.getDocumentElement());
 
     apvts.replaceState(valueTreeToLoad);
@@ -117,10 +112,10 @@ int PresetManager::loadNextPreset()
 
     const auto currentIndex = allPresets.indexOf(currentPreset.toString());
     const auto nextIndex = currentIndex + 1 > (allPresets.size() - 1) ? 0 : currentIndex + 1;
-    
-    //loadPreset(allPresets.getReference(nextIndex)); //This will work on JUCE 6.1.5
 
-    return nextIndex; 
+    // loadPreset(allPresets.getReference(nextIndex)); //This will work on JUCE 6.1.5
+
+    return nextIndex;
 }
 
 int PresetManager::loadPreviousPreset()
@@ -132,7 +127,7 @@ int PresetManager::loadPreviousPreset()
     const auto currentIndex = allPresets.indexOf(currentPreset.toString());
     const auto previousIndex = currentIndex - 1 < 0 ? allPresets.size() - 1 : currentIndex - 1;
 
-    //loadPreset(allPresets.getReference(previousIndex)); //This will work on JUCE 6.1.5
+    // loadPreset(allPresets.getReference(previousIndex)); //This will work on JUCE 6.1.5
 
     return previousIndex;
 }

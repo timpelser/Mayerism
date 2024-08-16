@@ -5,15 +5,12 @@
 NeuralAmpModeler::NeuralAmpModeler()
 {
     mToneStack = std::make_unique<dsp::tone_stack::BasicNamToneStack>();
-    nam::activations::Activation::enable_fast_tanh();    
+    nam::activations::Activation::enable_fast_tanh();
 
     mNoiseGateTrigger.AddListener(&mNoiseGateGain);
 }
 
-NeuralAmpModeler::~NeuralAmpModeler()
-{
-
-}
+NeuralAmpModeler::~NeuralAmpModeler() {}
 
 void NeuralAmpModeler::prepare(juce::dsp::ProcessSpec& spec)
 {
@@ -37,7 +34,7 @@ void NeuralAmpModeler::processBlock(juce::AudioBuffer<float>& buffer)
     auto* channelDataLeft = buffer.getWritePointer(0);
     auto* channelDataRight = buffer.getWritePointer(1);
     auto* outputData = outputBuffer.getWritePointer(0);
-    
+
     float** inputPointer = &channelDataLeft;
     float** outputPointer = &outputData;
     float** processedOutput;
@@ -57,7 +54,7 @@ void NeuralAmpModeler::processBlock(juce::AudioBuffer<float>& buffer)
         // Normalize loudness
         if (this->outputNormalized)
             normalizeOutput(outputPointer, 1, buffer.getNumSamples());
-        
+
 
         processedOutput = outputPointer;
     }
@@ -91,7 +88,6 @@ bool NeuralAmpModeler::loadModel(const std::string modelPath)
         mStagedModel = std::move(temp);
 
         return true;
-
     }
     catch (std::runtime_error& e)
     {
@@ -120,32 +116,32 @@ void NeuralAmpModeler::clearModel()
 
 void NeuralAmpModeler::applyDSPStaging()
 {
-  // Remove marked modules
-  if (shouldRemoveModel)
-  {
-    mModel = nullptr;
-    shouldRemoveModel = false;
-    //_UpdateLatency();
-  }
+    // Remove marked modules
+    if (shouldRemoveModel)
+    {
+        mModel = nullptr;
+        shouldRemoveModel = false;
+        //_UpdateLatency();
+    }
 
-  // Move things from staged to live
-  if (mStagedModel != nullptr)
-  {
-    // Move from staged to active DSP
-    mModel = std::move(mStagedModel);
-    mStagedModel = nullptr;
-    modelLoaded = true;
-    //_UpdateLatency();
-  }  
+    // Move things from staged to live
+    if (mStagedModel != nullptr)
+    {
+        // Move from staged to active DSP
+        mModel = std::move(mStagedModel);
+        mStagedModel = nullptr;
+        modelLoaded = true;
+        //_UpdateLatency();
+    }
 }
 
 void NeuralAmpModeler::resetModel()
 {
-    if (mStagedModel != nullptr)    
+    if (mStagedModel != nullptr)
         mStagedModel->Reset(this->sampleRate, this->samplesPerBlock);
 
-    else if (mModel != nullptr)    
-        mModel->Reset(this->sampleRate, this->samplesPerBlock);    
+    else if (mModel != nullptr)
+        mModel->Reset(this->sampleRate, this->samplesPerBlock);
 }
 
 void NeuralAmpModeler::normalizeOutput(float** input, int numChannels, int numSamples)
@@ -154,7 +150,7 @@ void NeuralAmpModeler::normalizeOutput(float** input, int numChannels, int numSa
         return;
     if (!mModel->HasLoudness())
         return;
-        
+
     const double loudness = mModel->GetLoudness();
     const double targetLoudness = -18.0;
     const double gain = pow(10.0, (targetLoudness - loudness) / 20.0);
@@ -172,10 +168,10 @@ void NeuralAmpModeler::updateParameters()
 {
     outputNormalized = bool(params[Parameters::kOutNorm]->load());
 
-    //Tone Stack
+    // Tone Stack
     toneStackActive = bool(params[Parameters::kEQActive]->load());
 
-    //Noise Gate
+    // Noise Gate
     noiseGateActive = int(params[Parameters::kNoiseGateThreshold]->load()) < -100 ? false : true;
 
     if (toneStackActive)
@@ -187,8 +183,8 @@ void NeuralAmpModeler::updateParameters()
 
     if (noiseGateActive)
     {
-        const dsp::noise_gate::TriggerParams triggerParams(this->ns_time, params[Parameters::kNoiseGateThreshold]->load(), 
-            this->ns_ratio, this->ns_openTime, this->ns_holdTime, this->ns_closeTime);
+        const dsp::noise_gate::TriggerParams triggerParams(
+            this->ns_time, params[Parameters::kNoiseGateThreshold]->load(), this->ns_ratio, this->ns_openTime, this->ns_holdTime, this->ns_closeTime);
 
         mNoiseGateTrigger.SetParams(triggerParams);
     }

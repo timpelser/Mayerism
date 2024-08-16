@@ -5,20 +5,19 @@
 #include "PresetManager/PresetManagerComponent.h"
 #include "StandaloneSettingsComponent.h"
 
-class TopBarComponent : public juce::AudioProcessorEditor,
-                        public juce::ComboBox::Listener
+class TopBarComponent : public juce::AudioProcessorEditor, public juce::ComboBox::Listener
 {
 public:
     TopBarComponent(NamJUCEAudioProcessor&, std::function<void()>&& updateFunction);
     ~TopBarComponent() override;
 
-    void paint(juce::Graphics& g) override;
-    void resized() override;
+    void paint (juce::Graphics& g) override;
+    void resized () override;
 
-    void setBackgroundColour(juce::Colour colour);
+    void setBackgroundColour (juce::Colour colour);
 
     void comboBoxChanged (ComboBox* comboBoxThatHasChanged) override;
-    void openInfoWindow(juce::String m);
+    void openInfoWindow (juce::String m);
 
     enum DropdownOptions
     {
@@ -26,9 +25,8 @@ public:
         GetModels,
         Info
     };
-    
-private:
 
+private:
     PresetManagerComponent pmc;
     std::function<void()> parentUpdater;
 
@@ -38,16 +36,16 @@ private:
     juce::Image settingsPushed = juce::ImageFileFormat::loadFrom(BinaryData::settingspushed_png, BinaryData::settingspushed_pngSize);
     juce::Image settingsUnpushed = juce::ImageFileFormat::loadFrom(BinaryData::settingsunpushed_png, BinaryData::settingsunpushed_pngSize);
 
-    juce::Colour backgroundColour {juce::Colours::transparentBlack};
+    juce::Colour backgroundColour{juce::Colours::transparentBlack};
 
     juce::LookAndFeel_V4 lnf;
 
     SafePointer<DialogWindow> dialogWindow;
-    juce::URL modelsURL {"https://tonehunt.org"};
+    juce::URL modelsURL{"https://tonehunt.org"};
 
     NamJUCEAudioProcessor& audioProcessor;
 
-    void showSettings();
-    
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TopBarComponent)
+    void showSettings ();
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TopBarComponent)
 };

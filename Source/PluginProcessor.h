@@ -9,11 +9,12 @@
 #include "PresetManager/PresetManager.h"
 //==============================================================================
 /**
-*/
-class NamJUCEAudioProcessor  : public juce::AudioProcessor
-                            #if JucePlugin_Enable_ARA
-                             , public juce::AudioProcessorARAExtension
-                            #endif
+ */
+class NamJUCEAudioProcessor : public juce::AudioProcessor
+#if JucePlugin_Enable_ARA
+    ,
+                              public juce::AudioProcessorARAExtension
+#endif
 {
 public:
     //==============================================================================
@@ -22,29 +23,29 @@ public:
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
-    void releaseResources() override;
+    void releaseResources () override;
 
-   #ifndef JucePlugin_PreferredChannelConfigurations
+#ifndef JucePlugin_PreferredChannelConfigurations
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
-   #endif
+#endif
 
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     //==============================================================================
-    juce::AudioProcessorEditor* createEditor() override;
-    bool hasEditor() const override;
+    juce::AudioProcessorEditor* createEditor () override;
+    bool hasEditor () const override;
 
     //==============================================================================
-    const juce::String getName() const override;
+    const juce::String getName () const override;
 
-    bool acceptsMidi() const override;
-    bool producesMidi() const override;
-    bool isMidiEffect() const override;
-    double getTailLengthSeconds() const override;
+    bool acceptsMidi () const override;
+    bool producesMidi () const override;
+    bool isMidiEffect () const override;
+    double getTailLengthSeconds () const override;
 
     //==============================================================================
-    int getNumPrograms() override;
-    int getCurrentProgram() override;
+    int getNumPrograms () override;
+    int getCurrentProgram () override;
     void setCurrentProgram (int index) override;
     const juce::String getProgramName (int index) override;
     void changeProgramName (int index, const juce::String& newName) override;
@@ -53,43 +54,36 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    void loadNamModel(juce::File modelToLoad);
-    bool getNamModelStatus();
-    void clearNAM();
-    
-    void loadImpulseResponse(juce::File irToLoad);  
-    bool getIrStatus();
-    void clearIR();  
+    void loadNamModel (juce::File modelToLoad);
+    bool getNamModelStatus ();
+    void clearNAM ();
 
-    bool getTriggerStatus();
+    void loadImpulseResponse (juce::File irToLoad);
+    bool getIrStatus ();
+    void clearIR ();
 
-    bool supportsDoublePrecisionProcessing() const override;
+    bool getTriggerStatus ();
 
-    const std::string getLastModelPath(){ return lastModelPath; };
-    const std::string getLastModelName(){ return lastModelName; };
-    const std::string getLastIrPath(){ return lastIrPath; };
-    const std::string getLastIrName(){ return lastIrName; };
+    bool supportsDoublePrecisionProcessing () const override;
+
+    const std::string getLastModelPath() { return lastModelPath; };
+    const std::string getLastModelName() { return lastModelName; };
+    const std::string getLastIrPath() { return lastIrPath; };
+    const std::string getLastIrName() { return lastIrName; };
     const std::string getLastModelSearchDirectory() { return lastModelSerachDir; };
     const std::string getLastIrSearchDirectory() { return lastIrSerachDir; };
 
-    foleys::LevelMeterSource& getMeterInSource()
-    {
-        return meterInSource;
-    }
-
-    foleys::LevelMeterSource& getMeterOutSource()
-    {
-        return meterOutSource;
-    }
+    foleys::LevelMeterSource& getMeterInSource() { return meterInSource; }
+    foleys::LevelMeterSource& getMeterOutSource() { return meterOutSource; }
 
     juce::AudioProcessorValueTreeState apvts;
-    juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
+    juce::AudioProcessorValueTreeState::ParameterLayout createParameters ();
 
-    PresetManager& getPresetManager(){ return presetManager; };
+    PresetManager& getPresetManager() { return presetManager; };
 
-    bool eqModuleVisible {false};
+    bool eqModuleVisible{false};
 
-    void loadFromPreset(juce::String modelPath, juce::String irPath);
+    void loadFromPreset (juce::String modelPath, juce::String irPath);
 
 
 private:
@@ -102,14 +96,14 @@ private:
     };
 
     NeuralAmpModeler myNAM;
-    
+
     juce::dsp::Convolution cab;
-    bool irFound {false};
-    bool irLoaded {false};
+    bool irFound{false};
+    bool irLoaded{false};
 
     std::atomic<float>* filterCuttofs[2];
 
-    juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter <float>, juce::dsp::IIR::Coefficients <float>>highCut, lowCut;
+    juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>> highCut, lowCut;
 
     std::string lastModelPath = "null";
     std::string lastModelName = "null";
@@ -120,17 +114,17 @@ private:
     std::string lastModelSerachDir = "null";
     std::string lastIrSerachDir = "null";
 
-    bool namModelLoaded {false};
+    bool namModelLoaded{false};
 
     EqProcessor tenBandEq;
     Doubler doubler;
 
-    bool supportsDouble{ false };
+    bool supportsDouble{false};
 
     foleys::LevelMeterSource meterInSource;
     foleys::LevelMeterSource meterOutSource;
 
     PresetManager presetManager;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NamJUCEAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamJUCEAudioProcessor)
 };

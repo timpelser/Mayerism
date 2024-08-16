@@ -3,15 +3,9 @@
 class FirstOrderSmoother
 {
 public:
-    FirstOrderSmoother()
-    {
-        
-    }
+    FirstOrderSmoother() {}
 
-    ~FirstOrderSmoother()
-    {
-
-    }
+    ~FirstOrderSmoother() {}
 
     void prepare(float smoothingTimeInMs, float samplingRate)
     {
@@ -38,17 +32,10 @@ template <typename SampleType>
 class DigitalDelay
 {
 public:
+    DigitalDelay() {}
 
-    DigitalDelay()
-    {
+    void setDelayMs(SampleType newDelayMs) { delayTime = newDelayMs * this->sampleRate / 1000.0; }
 
-    }
-
-    void setDelayMs(SampleType newDelayMs)
-    {
-        delayTime = newDelayMs * this->sampleRate / 1000.0;
-    }
-    
     void prepare(const juce::dsp::ProcessSpec& spec)
     {
         jassert(spec.sampleRate > 0);
@@ -58,15 +45,12 @@ public:
 
         delay.prepare(spec);
 
-        smoother.prepare(850.0, sampleRate);             
+        smoother.prepare(850.0, sampleRate);
 
         reset();
     }
 
-    void reset()
-    {
-        delay.reset();
-    }
+    void reset() { delay.reset(); }
 
     template <typename ProcessContext>
     void process(const ProcessContext& context) noexcept
@@ -94,7 +78,7 @@ public:
             auto output = input;
 
             delay.setDelay(smoother.process(this->delayTime));
-            delay.pushSample((int)1, output);                                  
+            delay.pushSample((int)1, output);
             output = delay.popSample((int)1);
 
             outputSamples[i] = output;
@@ -103,8 +87,8 @@ public:
 
 
 private:
-    juce::dsp::DelayLine<SampleType, juce::dsp::DelayLineInterpolationTypes::Linear> delay{ 2*44100 };    
-    double sampleRate = 44100.0;    
+    juce::dsp::DelayLine<SampleType, juce::dsp::DelayLineInterpolationTypes::Linear> delay{2 * 44100};
+    double sampleRate = 44100.0;
     SampleType delayTime = 7.0;
     FirstOrderSmoother smoother;
 };
@@ -112,16 +96,9 @@ private:
 class Doubler
 {
 public:
+    Doubler() {}
 
-    Doubler()
-    {
-
-    }
-
-    ~Doubler()
-    {
-
-    }
+    ~Doubler() {}
 
     void prepare(juce::dsp::ProcessSpec& _spec)
     {
@@ -146,9 +123,6 @@ public:
     double lastDelayValue;
 
 private:
-
     juce::dsp::ProcessSpec spec;
     DigitalDelay<float> delayModule;
-    
-
 };

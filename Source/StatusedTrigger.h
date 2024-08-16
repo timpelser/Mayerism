@@ -18,9 +18,8 @@ extern const double dsp::noise_gate::MINIMUM_LOUDNESS_POWER;
 class StatusedTrigger : public dsp::noise_gate::Trigger
 {
 public:
-
     StatusedTrigger();
-    DSP_SAMPLE** Process(DSP_SAMPLE** inputs, const size_t numChannels, const size_t numFrames) override;
+    DSP_SAMPLE** Process (DSP_SAMPLE** inputs, const size_t numChannels, const size_t numFrames) override;
     std::vector<std::vector<DSP_SAMPLE>> GetGainReduction() const { return this->mGainReductionDB; };
     void SetParams(const dsp::noise_gate::TriggerParams& params) { this->mParams = params; };
     void SetSampleRate(const double sampleRate) { this->mSampleRate = sampleRate; }
@@ -36,7 +35,6 @@ public:
     bool isGating() { return this->gating; };
 
 private:
-
     enum class State
     {
         MOVING = 0,
@@ -51,7 +49,7 @@ private:
     }
 
     double _GetMaxGainReduction() const { return this->_GetGainReduction(dsp::noise_gate::MINIMUM_LOUDNESS_DB); }
-    virtual void _PrepareBuffers(const size_t numChannels, const size_t numFrames) override;
+    virtual void _PrepareBuffers (const size_t numChannels, const size_t numFrames) override;
 
     dsp::noise_gate::TriggerParams mParams;
     std::vector<State> mState; // One per channel
@@ -70,8 +68,7 @@ private:
 
     double level_to_db(const DSP_SAMPLE db) { return 10.0 * log10(db); };
 
-    bool gating {false};
-
+    bool gating{false};
 };
 
 #endif

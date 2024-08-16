@@ -7,15 +7,15 @@ public:
     EqProcessor();
     ~EqProcessor();
 
-    void prepare(const juce::dsp::ProcessSpec& _spec);
-    void process(juce::AudioBuffer<float>& buffer);
+    void prepare (const juce::dsp::ProcessSpec& _spec);
+    void process (juce::AudioBuffer<float>& buffer);
 
-    void pushParametersToTree(std::vector<std::unique_ptr<juce::RangedAudioParameter>>& parameters);
-	void hookParameters(juce::AudioProcessorValueTreeState&);
+    void pushParametersToTree (std::vector<std::unique_ptr<juce::RangedAudioParameter>>& parameters);
+    void hookParameters (juce::AudioProcessorValueTreeState&);
 
-	enum Parameters
+    enum Parameters
     {
-		_31 = 0,
+        _31 = 0,
         _62,
         _125,
         _250,
@@ -25,30 +25,18 @@ public:
         _4K,
         _8K,
         _16K,
-		Input,
-		Output
+        Input,
+        Output
     };
 
-private:	
-	void updateBands();
+private:
+    void updateBands ();
 
-	std::atomic<float>* params[12];
+    std::atomic<float>* params[12];
 
     juce::dsp::ProcessSpec spec;
 
-    juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter <float>, juce::dsp::IIR::Coefficients <float>> tbBands[10];
+    juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>> tbBands[10];
 
-    float bandFreqs[10] = {
-	31.0,
-	62.0,
-	125.0,
-	250.0,
-	500.0,
-	1000.0,
-	2000.0,
-	4000.0,
-	8000.0,
-	16000.0
-	};
-
+    float bandFreqs[10] = {31.0, 62.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0};
 };

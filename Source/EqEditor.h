@@ -1,22 +1,21 @@
 #pragma once
-//#include <JuceHeader.h>
+// #include <JuceHeader.h>
 #include "PluginProcessor.h"
 #include "MyLookAndFeel.h"
 
 class EqEditor : public juce::AudioProcessorEditor
 {
 public:
-
     EqEditor(NamJUCEAudioProcessor&);
     ~EqEditor();
 
-    void paint(juce::Graphics&) override;
-    void resized() override;
-    
-    void toggleEq();
+    void paint (juce::Graphics&) override;
+    void resized () override;
 
-    void placeSliders();
-    void updateSliders();
+    void toggleEq ();
+
+    void placeSliders ();
+    void updateSliders ();
 
     enum FrequencyBands
     {
@@ -32,10 +31,9 @@ public:
         _16K
     };
 
-    void updateGraphics();
+    void updateGraphics ();
 
 private:
-
     juce::Image backgroundOn = juce::ImageFileFormat::loadFrom(BinaryData::eq_background_on_png, BinaryData::eq_background_on_pngSize);
     juce::Image backgroundOff = juce::ImageFileFormat::loadFrom(BinaryData::eq_background_off_png, BinaryData::eq_background_off_pngSize);
 
@@ -50,12 +48,11 @@ private:
     SliderOnLookAndFeel lnfOn;
     SliderOffLookAndFeel lnfOff;
 
-    knobLookAndFeel lnf {knobLookAndFeel::KnobTypes::Minimal};
-    
-    int globalOffset {23};
+    knobLookAndFeel lnf{knobLookAndFeel::KnobTypes::Minimal};
+
+    int globalOffset{23};
 
     NamJUCEAudioProcessor& audioProcessor;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EqEditor)
-
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EqEditor)
 };

@@ -1,9 +1,6 @@
 #include "StatusedTrigger.h"
 
-StatusedTrigger::StatusedTrigger()
-    : mParams(0.05, -60.0, 1.5, 0.002, 0.050, 0.050), mSampleRate(0)
-{
-}
+StatusedTrigger::StatusedTrigger() : mParams(0.05, -60.0, 1.5, 0.002, 0.050, 0.050), mSampleRate(0) {}
 
 DSP_SAMPLE** StatusedTrigger::Process(DSP_SAMPLE** inputs, const size_t numChannels, const size_t numFrames)
 {
@@ -26,7 +23,7 @@ DSP_SAMPLE** StatusedTrigger::Process(DSP_SAMPLE** inputs, const size_t numChann
         for (auto s = 0; s < numFrames; s++)
         {
             this->mLevel[c] =
-            std::clamp(alpha * this->mLevel[c] + beta * (inputs[c][s] * inputs[c][s]), dsp::noise_gate::MINIMUM_LOUDNESS_POWER, 1000.0);
+                std::clamp(alpha * this->mLevel[c] + beta * (inputs[c][s] * inputs[c][s]), dsp::noise_gate::MINIMUM_LOUDNESS_POWER, 1000.0);
             const double levelDB = level_to_db(this->mLevel[c]);
             if (this->mState[c] == StatusedTrigger::State::HOLDING)
             {
@@ -36,7 +33,7 @@ DSP_SAMPLE** StatusedTrigger::Process(DSP_SAMPLE** inputs, const size_t numChann
                 {
                     this->mTimeHeld[c] += dt;
                     if (this->mTimeHeld[c] >= maxHold)
-                    this->mState[c] = StatusedTrigger::State::MOVING;
+                        this->mState[c] = StatusedTrigger::State::MOVING;
                 }
                 else
                 {
@@ -78,11 +75,11 @@ DSP_SAMPLE** StatusedTrigger::Process(DSP_SAMPLE** inputs, const size_t numChann
 
     // Share the results with gain objects that are listening to this trigger:
     for (auto gain = this->mGainListeners.begin(); gain != this->mGainListeners.end(); ++gain)
-    (*gain)->SetGainReductionDB(this->mGainReductionDB);
+        (*gain)->SetGainReductionDB(this->mGainReductionDB);
 
     // Copy input to output
     for (auto c = 0; c < numChannels; c++)
-    memcpy(this->mOutputs[c].data(), inputs[c], numFrames * sizeof(DSP_SAMPLE));
+        memcpy(this->mOutputs[c].data(), inputs[c], numFrames * sizeof(DSP_SAMPLE));
     return this->_GetPointers();
 }
 

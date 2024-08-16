@@ -2,28 +2,26 @@
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "PresetManager.h"
 
-class PresetManagerComponent : public juce::Component,
-                               public juce::ComboBox::Listener
+class PresetManagerComponent : public juce::Component, public juce::ComboBox::Listener
 {
 public:
-
     PresetManagerComponent(PresetManager&, std::function<void()>&& updateFunction);
 
-    void paint(juce::Graphics& g) override;
-    void resized() override;
-    
-    void loadComboBox();
-    void comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) override;
+    void paint (juce::Graphics& g) override;
+    void resized () override;
 
-    void parameterChanged();
+    void loadComboBox ();
+    void comboBoxChanged (juce::ComboBox* comboBoxThatHasChanged) override;
 
-    void setColour(juce::Colour colourToUse, float alpha);
-    void setColour(juce::Colour colourToUse);
+    void parameterChanged ();
+
+    void setColour (juce::Colour colourToUse, float alpha);
+    void setColour (juce::Colour colourToUse);
 
 private:
-    int barHeight {32};
-    juce::Colour barColour {juce::Colours::whitesmoke};
-    float barAlpha {0.4f};
+    int barHeight{32};
+    juce::Colour barColour{juce::Colours::whitesmoke};
+    float barAlpha{0.4f};
 
     juce::LookAndFeel_V4 lnf;
 
@@ -43,12 +41,11 @@ private:
     PresetManager& presetManager;
     std::unique_ptr<juce::FileChooser> fileChooser;
 
-    juce::TooltipWindow tooltipWindow { this, 300 };
+    juce::TooltipWindow tooltipWindow{this, 300};
 
-    void constructUI();
+    void constructUI ();
 
     std::function<void()> parentUpdater;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PresetManagerComponent)
-
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetManagerComponent)
 };
