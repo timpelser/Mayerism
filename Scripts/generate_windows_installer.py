@@ -102,7 +102,7 @@ if not os.path.exists(f'{binary_output_dir}/isp'):
 
 		os.system(f"curl -L -o {repo_dir}\\Installers\\windows\\isp\\isp.7z {dl_link} && tar -xf {isp_dir}\\isp.7z -C {isp_dir} && del {isp_dir}\\isp.7z")
 
-print("Compiling istaller...\n")
+print("Compiling installer...\n")
 
 issc_command = f'{isp_dir}\\app\\ISCC.exe {repo_dir}\\Installers\\windows\\{installer_exe_name}.iss'
 

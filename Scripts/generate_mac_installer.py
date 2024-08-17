@@ -2,6 +2,43 @@ import os
 import argparse
 import inspect
 
+# ================================================================================
+
+def generateUninstaller():
+    print("Generating Uninstall Script...")
+
+    product_name_escaped = product_name.replace(" ", "\\ ")
+
+    uninstall_script = \
+    f"""
+    #!/bin/bash
+
+    echo "Uninstalling {product_name}..."
+
+    sudo rm -rf /Applications/{product_name_escaped}.app
+    sudo rm -rf /Library/Audio/Plug-Ins/VST/{product_name_escaped}.vst3
+    sudo rm -rf /Library/Audio/Plug-Ins/Components/{product_name_escaped}.component
+
+    sudo pkgutil --forget {common_identifier}.app.pkg.{pkg_name}
+    sudo pkgutil --forget {common_identifier}.vst3.pkg.{pkg_name}
+    sudo pkgutil --forget {common_identifier}.au.pkg.{pkg_name}
+
+    echo "Uninstall Finished!"
+    """
+
+    print(f"Exporting uninstall script as {installer_dir}/uninstall-{pkg_name}...\n")
+
+    if args.dryrun:
+        print(f'===== UNINSTALL SCRIPT =====\n\n{uninstall_script}\n\n===== END UNINSTALL SCRIPT =====\n')
+    else:
+        with open(f'{installer_dir}/uninstall-{pkg_name}', "w") as f:
+            f.write(uninstall_script)
+
+        os.system(f"sudo chmod +x {installer_dir}/uninstall-{pkg_name}")
+        print("Export Finished!\n")
+
+# ================================================================================
+
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--dryrun', '-d', dest='dryrun', action='store_true', help='Dry run.')
 parser.add_argument('--clear', '-c', dest='clear_artefacts', action='store_true', help='Clear Artefacts folder after installer is generated.')
@@ -33,38 +70,7 @@ if args.name != None:
 print(f'{project_name} {version}\n')
 
 if args.uninstall:
-    print("Generating Uninstall Script...")
-
-    product_name_escaped = product_name.replace(" ", "\\ ")
-
-    uninstall_script = \
-    f"""
-    #!/bin/bash
-
-    echo "Uninstalling {product_name}..."
-
-    sudo rm -rf /Applications/{product_name_escaped}.app
-    sudo rm -rf /Library/Audio/Plug-Ins/VST/{product_name_escaped}.vst3
-    sudo rm -rf /Library/Audio/Plug-Ins/Components/{product_name_escaped}.component
-
-    sudo pkgutil --forget {common_identifier}.app.pkg.{pkg_name}
-    sudo pkgutil --forget {common_identifier}.vst3.pkg.{pkg_name}
-    sudo pkgutil --forget {common_identifier}.au.pkg.{pkg_name}
-
-    echo "Uninstall Finished!"
-    """
-
-    print(f"Exporting uninstall script as {installer_dir}/mac_uninstall...\n")
-
-    if args.dryrun:
-        print(f'===== UNINSTALL SCRIPT =====\n\n{uninstall_script}\n\n===== END UNINSTALL SCRIPT =====\n')
-    else:
-        with open(f'{installer_dir}/mac_uninstall', "w") as f:
-            f.write(uninstall_script)
-
-        os.system(f"sudo chmod +x {installer_dir}/mac_uninstall")
-        print("Export Finished!\n")
-    
+    generateUninstaller()
     exit()
 
 if not os.path.exists(f'{pkg_output_dir}'):
@@ -100,6 +106,9 @@ if args.dryrun:
 else:
     os.system(au_command)
     print("\n")
+
+# Uninstaller
+generateUninstaller()
 
 VST3_PKG_REF= f'<pkg-ref id="com.ManosLabrakis.vst3.pkg.{pkg_name}"/>'
 VST3_CHOICE= f'<line choice="com.ManosLabrakis.vst3.pkg.{pkg_name}"/>'
@@ -200,7 +209,7 @@ if args.archive:
     print("Setting up output directory...\n")
 
     if not args.dryrun:
-        os.system(f'cp {installer_dir}/{exec_name} {dmg_output_dir}')
+        os.system(f'cp {installer_dir}/{exec_name} {dmg_output_dir} && cp {installer_dir}/uninstall-{pkg_name} {dmg_output_dir}')
 
     clone_command = f'git clone https://github.com/create-dmg/create-dmg {installer_dir}/create-dmg'
 
