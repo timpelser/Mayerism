@@ -34,7 +34,7 @@ def generateUninstaller():
         with open(f'{installer_dir}/uninstall-{pkg_name}', "w") as f:
             f.write(uninstall_script)
 
-        os.system(f"sudo chmod +x {installer_dir}/uninstall-{pkg_name}")
+        os.system(f"sudo chmod +x {installer_dir}/uninstall-{pkg_name}" if args.sudo else f"chmod +x {installer_dir}/uninstall-{pkg_name}")
         print("Export Finished!\n")
 
 # ================================================================================
@@ -45,9 +45,10 @@ parser.add_argument('--clear', '-c', dest='clear_artefacts', action='store_true'
 parser.add_argument('--name', '-n', type=str, help='Override installer executable name.')
 parser.add_argument('--archive', '-a', dest='archive', action='store_true', help='Archive reslulting executable.')
 parser.add_argument('--uninstall', '-u', dest='uninstall', action='store_true', help='Generate Uninstall Script.')
+parser.add_argument('--sudo', '-s', dest='sudo', action='store_true', help='Request sudo priviledges.')
 args = parser.parse_args()
 
-os.system("sudo clear")
+os.system("sudo clear" if args.sudo else "clear") # Get sudo priviledges at the start of the script to avoid getting prompted later on...
 
 script_root_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 repo_dir = os.path.abspath(os.path.join(script_root_dir, os.pardir))
@@ -188,7 +189,7 @@ else:
 if args.clear_artefacts:
     print(f'Clearing {artefacts_dir}...\n')
     if not args.dryrun:
-        os.system(f'sudo rm -rf {artefacts_dir}/Release/*')
+        os.system(f'sudo rm -rf {artefacts_dir}/Release/' if args.sudo else f'rm -rf {artefacts_dir}/Release/')
 
 # Create dmg archive
 # https://github.com/create-dmg/create-dmg
