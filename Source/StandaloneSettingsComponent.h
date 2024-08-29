@@ -45,7 +45,7 @@ public:
     void paint(Graphics& g) override
     {
         g.fillAll(juce::Colour::fromString("FF2E2E2E"));
-        //g.fillAll(juce::Colours::darkgrey);
+        // g.fillAll(juce::Colours::darkgrey);
     };
 
     void resized() override

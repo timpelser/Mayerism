@@ -4,6 +4,14 @@
 //==============================================================================
 NamJUCEAudioProcessorEditor::NamJUCEAudioProcessorEditor(NamJUCEAudioProcessor& p) : AudioProcessorEditor(&p), audioProcessor(p), namEditor(p)
 {
+    if (juce::JUCEApplicationBase::isStandaloneApp())
+    {
+        if (auto* pluginHolder = juce::StandalonePluginHolder::getInstance())
+        {
+            pluginHolder->getMuteInputValue().setValue(false);
+        }
+    }
+
     setResizeLimits(949, 649, 950, 650);
     setResizable(false, false);
 
