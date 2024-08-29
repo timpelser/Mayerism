@@ -64,7 +64,7 @@ void TopBarComponent::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
         {
             case DropdownOptions::AudioSettings:
                 if (JUCEApplication::isStandaloneApp())
-                    showSettings();
+                    juce::StandalonePluginHolder::getInstance()->showAudioSettingsDialog();
                 break;
             case DropdownOptions::GetModels: modelsURL.launchInDefaultBrowser(); break;
             case DropdownOptions::Info:
@@ -104,47 +104,4 @@ void TopBarComponent::openInfoWindow(juce::String m)
 
     if (dialogWindow != nullptr)
         dialogWindow->centreWithSize(300, 200);
-}
-
-void TopBarComponent::showSettings()
-{
-    if (JUCEApplication::isStandaloneApp())
-    {
-        auto pluginHolderInstance = juce::StandalonePluginHolder::getInstance();
-        auto channelConfiguration = pluginHolderInstance->channelConfiguration;
-        auto* deviceManager = &pluginHolderInstance->deviceManager;
-
-        DialogWindow::LaunchOptions o;
-
-        int maxNumInputs = 0, maxNumOutputs = 0;
-
-        if (channelConfiguration.size() > 0)
-        {
-            auto& defaultConfig = channelConfiguration.getReference(0);
-
-            maxNumInputs = jmax(0, (int)defaultConfig.numIns);
-            maxNumOutputs = jmax(0, (int)defaultConfig.numOuts);
-        }
-
-        if (auto* bus = pluginHolderInstance->processor->getBus(true, 0))
-            maxNumInputs = jmax(0, bus->getDefaultLayout().size());
-
-        if (auto* bus = pluginHolderInstance->processor->getBus(false, 0))
-            maxNumOutputs = jmax(0, bus->getDefaultLayout().size());
-
-        auto content = std::make_unique<StandaloneSettingsComponent>(*pluginHolderInstance, *deviceManager, maxNumInputs, maxNumOutputs);
-
-        content->setSize(500, 500);
-
-        o.content.setOwned(content.release());
-
-        o.dialogTitle = TRANS("Audio/MIDI Settings");
-        o.dialogBackgroundColour = o.content->getLookAndFeel().findColour(ResizableWindow::backgroundColourId);
-        o.escapeKeyTriggersCloseButton = true;
-        o.useNativeTitleBar = true;
-        o.resizable = true;
-
-
-        o.launchAsync();
-    }
 }

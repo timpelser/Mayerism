@@ -22,9 +22,12 @@ PRIVATE
     TopBarComponent.cpp
     TopBarComponent.h
     DoublerProcessor.h
-    StandaloneSettingsComponent.h
     architecture.hpp
 )
 
+add_subdirectory(CustomStandaloneWindow)
+include_directories(CustomStandaloneWindow)
+
 add_subdirectory(PresetManager)
 include_directories(PresetManager)
+
