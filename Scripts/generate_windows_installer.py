@@ -1,6 +1,7 @@
 import os
 import argparse
 import inspect
+import py7zr
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--dryrun', '-d', dest='dryrun', action='store_true', help='Dry run.')
@@ -100,7 +101,11 @@ if not os.path.exists(f'{binary_output_dir}/isp'):
 
 		dl_link = "https://github.com/portapps/innosetup-portable/releases/download/6.2.0-5/innosetup-portable-win32-6.2.0-5.7z"
 
-		os.system(f"curl -L -o {repo_dir}\\Installers\\windows\\isp\\isp.7z {dl_link} && tar -xf {isp_dir}\\isp.7z -C {isp_dir} && del {isp_dir}\\isp.7z")
+		os.system(f"curl -L -o {repo_dir}\\Installers\\windows\\isp\\isp.7z {dl_link}")
+		archive = py7zr.SevenZipFile(f'{repo_dir}/Installers/windows/isp/isp.7z', mode='r')
+		archive.extractall(path=f"{repo_dir}/Installers/windows/isp/")
+		archive.close()
+		os.system(f'del {isp_dir}\\isp.7z')
 
 print("Compiling installer...\n")
 

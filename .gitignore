@@ -5,3 +5,5 @@ build/
 JuceLibraryCode/
 Installers/
 sdk/
+Scripts/venv
+venv
