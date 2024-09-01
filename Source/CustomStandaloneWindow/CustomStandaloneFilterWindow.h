@@ -25,6 +25,10 @@
 
 #pragma once
 
+#ifndef DOXYGEN
+    #include <juce_audio_plugin_client/utility/juce_CreatePluginFilter.h>
+#endif
+
 namespace juce
 {
 
