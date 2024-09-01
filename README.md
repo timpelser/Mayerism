@@ -70,3 +70,5 @@ Note: The Standalone application for Windows doesn't support ASIO by default. Fo
 
 More plugin formats like LV2 and Legacy VST can be built by providing the appropriate SDK paths and setting the corresponding JUCE flags in the main `CMakeLists.txt` file.
 
+## Getting Models
+You can find Models and Impulse Responses shared by the community on [ToneHunt](https://tonehunt.org).
