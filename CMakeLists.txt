@@ -53,12 +53,12 @@ juce_add_plugin(${PROJECT_NAME}
     # NEEDS_MIDI_OUTPUT TRUE/FALSE        
     # IS_MIDI_EFFECT TRUE/FALSE         
     # EDITOR_WANTS_KEYBOARD_FOCUS TRUE/FALSE
-    # COPY_PLUGIN_AFTER_BUILD TRUE/FALSE  
+    # COPY_PLUGIN_AFTER_BUILD TRUE  
     # PLUGIN_MANUFACTURER_CODE Juce             
     PLUGIN_CODE NMj0
-    FORMATS AU VST3 Standalone                  
-    PRODUCT_NAME "Neural Amp Modeler"
-    JucePlugin_Manufacturer "Manos Labrakis"
+    FORMATS VST3 Standalone                  
+    PRODUCT_NAME "Mayerism"
+    JucePlugin_Manufacturer "CraftLabs"
     )        
     
 juce_generate_juce_header(${PROJECT_NAME})

@@ -1,6 +1,5 @@
 file(GLOB SRC_FILES    
     "Buttons/*.png"
-    "EQ/*.png"
     "PresetManagerAssets/*.png"
     "ButtonLabels/*.png"
 )
@@ -16,6 +15,7 @@ juce_add_binary_data(BinaryData SOURCES
     knob_minimal.png
     led_off.png
     led_on.png
+    AmpModels/tworock.nam
     ${SRC_FILES}
 )
 

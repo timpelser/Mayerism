@@ -1,236 +1,278 @@
 #include "NeuralAmpModeler.h"
+#include "json.hpp"
 #include <filesystem>
 #include <iostream>
 
-NeuralAmpModeler::NeuralAmpModeler()
-{
-    mToneStack = std::make_unique<dsp::tone_stack::BasicNamToneStack>();
-    nam::activations::Activation::enable_fast_tanh();
+NeuralAmpModeler::NeuralAmpModeler() {
+  mToneStack = std::make_unique<dsp::tone_stack::BasicNamToneStack>();
+  nam::activations::Activation::enable_fast_tanh();
 
-    mNoiseGateTrigger.AddListener(&mNoiseGateGain);
+  mNoiseGateTrigger.AddListener(&mNoiseGateGain);
 }
 
 NeuralAmpModeler::~NeuralAmpModeler() {}
 
-void NeuralAmpModeler::prepare(juce::dsp::ProcessSpec& spec)
-{
-    this->sampleRate = spec.sampleRate;
-    this->samplesPerBlock = spec.maximumBlockSize;
+void NeuralAmpModeler::prepare(juce::dsp::ProcessSpec &spec) {
+  this->sampleRate = spec.sampleRate;
+  this->samplesPerBlock = spec.maximumBlockSize;
 
-    outputBuffer.setSize(1, spec.maximumBlockSize, false, false, false);
-    outputBuffer.clear();
+  outputBuffer.setSize(1, spec.maximumBlockSize, false, false, false);
+  outputBuffer.clear();
 
-    resetModel();
-    mToneStack->Reset(this->sampleRate, this->samplesPerBlock);
+  resetModel();
+  mToneStack->Reset(this->sampleRate, this->samplesPerBlock);
 
-    mNoiseGateTrigger.SetSampleRate(this->sampleRate);
+  mNoiseGateTrigger.SetSampleRate(this->sampleRate);
 }
 
-void NeuralAmpModeler::processBlock(juce::AudioBuffer<float>& buffer)
-{
-    this->applyDSPStaging();
-    this->updateParameters();
+void NeuralAmpModeler::processBlock(juce::AudioBuffer<float> &buffer) {
+  this->applyDSPStaging();
+  this->updateParameters();
 
-    auto* channelDataLeft = buffer.getWritePointer(0);
-    auto* channelDataRight = buffer.getWritePointer(1);
-    auto* outputData = outputBuffer.getWritePointer(0);
+  auto *channelDataLeft = buffer.getWritePointer(0);
+  auto *channelDataRight = buffer.getWritePointer(1);
+  auto *outputData = outputBuffer.getWritePointer(0);
 
-    float** inputPointer = &channelDataLeft;
-    float** outputPointer = &outputData;
-    float** processedOutput;
-    float** triggerOutput = inputPointer;
+  float **inputPointer = &channelDataLeft;
+  float **outputPointer = &outputData;
+  float **processedOutput;
+  float **triggerOutput = inputPointer;
 
-    if (noiseGateActive) // Process gate trigger
-        triggerOutput = mNoiseGateTrigger.Process(inputPointer, 1, buffer.getNumSamples());
+  if (noiseGateActive) // Process gate trigger
+    triggerOutput =
+        mNoiseGateTrigger.Process(inputPointer, 1, buffer.getNumSamples());
 
-    if (mModel != nullptr)
-    {
-        // Input Gain
-        buffer.applyGain(dB_to_linear(params[Parameters::kInputLevel]->load()));
+  if (mModel != nullptr) {
+    // Input Gain
+    buffer.applyGain(dB_to_linear(params[Parameters::kInputLevel]->load()));
 
-        mModel->process(*inputPointer, *outputPointer, buffer.getNumSamples());
-        mModel->finalize_(buffer.getNumSamples());
+    mModel->process(*inputPointer, *outputPointer, buffer.getNumSamples());
+    mModel->finalize_(buffer.getNumSamples());
 
-        // Normalize loudness
-        if (this->outputNormalized)
-            normalizeOutput(outputPointer, 1, buffer.getNumSamples());
+    // Normalize loudness
+    if (this->outputNormalized)
+      normalizeOutput(outputPointer, 1, buffer.getNumSamples());
 
+    processedOutput = outputPointer;
+  } else {
+    processedOutput = inputPointer;
+  }
 
-        processedOutput = outputPointer;
+  // Apply the noise gate
+  float **gateGainOutput =
+      noiseGateActive
+          ? mNoiseGateGain.Process(processedOutput, 1, buffer.getNumSamples())
+          : processedOutput;
+
+  // Tone Stack
+  float **toneStackOutPointers =
+      toneStackActive
+          ? mToneStack->Process(gateGainOutput, 1, buffer.getNumSamples())
+          : gateGainOutput;
+
+  doDualMono(buffer, toneStackOutPointers);
+
+  // Output Gain
+  buffer.applyGain(dB_to_linear(params[Parameters::kOutputLevel]->load()));
+}
+
+bool NeuralAmpModeler::loadModel(const std::string modelPath) {
+  try {
+    auto dspPath = std::filesystem::u8path(modelPath);
+    std::unique_ptr<nam::DSP> model = nam::get_dsp(dspPath);
+    std::unique_ptr<ResamplingNAM> temp =
+        std::make_unique<ResamplingNAM>(std::move(model), this->sampleRate);
+
+    temp->Reset(this->sampleRate, this->samplesPerBlock);
+
+    mStagedModel = std::move(temp);
+
+    return true;
+  } catch (std::runtime_error &e) {
+    if (mStagedModel != nullptr) {
+      mStagedModel = nullptr;
     }
+
+    std::cout << "woops" << std::endl;
+    std::cerr << "Failed to read DSP module" << std::endl;
+    std::cerr << e.what() << std::endl;
+
+    return false;
+  }
+}
+
+bool NeuralAmpModeler::loadModelFromMemory(const void *data, const int size) {
+  // Reverted and disabled as per user request to avoid crash/compile issues
+  return false;
+  /*
+  try {
+    nlohmann::json j =
+        nlohmann::json::parse((const char *)data, (const char *)data + size);
+    nam::verify_config_version(j["version"]);
+
+    nam::dspData conf;
+    conf.version = j["version"];
+    conf.architecture = j["architecture"];
+    conf.config = j["config"];
+    conf.metadata = j["metadata"];
+
+    if (j.find("weights") != j.end()) {
+      conf.weights = j["weights"];
+    } else {
+      throw std::runtime_error("Corrupted model file is missing weights.");
+    }
+
+    if (j.find("sample_rate") != j.end())
+      conf.expected_sample_rate = j["sample_rate"];
     else
-    {
-        processedOutput = inputPointer;
+      conf.expected_sample_rate = -1.0;
+
+    std::unique_ptr<nam::DSP> model = nam::get_dsp(conf);
+    std::unique_ptr<ResamplingNAM> temp =
+        std::make_unique<ResamplingNAM>(std::move(model), this->sampleRate);
+
+    temp->Reset(this->sampleRate, this->samplesPerBlock);
+
+    mStagedModel = std::move(temp);
+
+    return true;
+  } catch (std::exception &e) {
+    if (mStagedModel != nullptr) {
+      mStagedModel = nullptr;
     }
 
-    // Apply the noise gate
-    float** gateGainOutput = noiseGateActive ? mNoiseGateGain.Process(processedOutput, 1, buffer.getNumSamples()) : processedOutput;
+    std::cerr << "Failed to read DSP module from memory" << std::endl;
+    std::cerr << e.what() << std::endl;
 
-    // Tone Stack
-    float** toneStackOutPointers = toneStackActive ? mToneStack->Process(gateGainOutput, 1, buffer.getNumSamples()) : gateGainOutput;
-
-    doDualMono(buffer, toneStackOutPointers);
-
-    // Output Gain
-    buffer.applyGain(dB_to_linear(params[Parameters::kOutputLevel]->load()));
+    return false;
+  }
+  */
 }
 
-bool NeuralAmpModeler::loadModel(const std::string modelPath)
-{
-    try
-    {
-        auto dspPath = std::filesystem::u8path(modelPath);
-        std::unique_ptr<nam::DSP> model = nam::get_dsp(dspPath);
-        std::unique_ptr<ResamplingNAM> temp = std::make_unique<ResamplingNAM>(std::move(model), this->sampleRate);
+bool NeuralAmpModeler::isModelLoaded() { return this->modelLoaded; }
 
-        temp->Reset(this->sampleRate, this->samplesPerBlock);
+void NeuralAmpModeler::clearModel() { this->shouldRemoveModel = true; }
 
-        mStagedModel = std::move(temp);
+void NeuralAmpModeler::applyDSPStaging() {
+  // Remove marked modules
+  if (shouldRemoveModel) {
+    mModel = nullptr;
+    shouldRemoveModel = false;
+    //_UpdateLatency();
+  }
 
-        return true;
+  // Move things from staged to live
+  if (mStagedModel != nullptr) {
+    // Move from staged to active DSP
+    mModel = std::move(mStagedModel);
+    mStagedModel = nullptr;
+    modelLoaded = true;
+    //_UpdateLatency();
+  }
+}
+
+void NeuralAmpModeler::resetModel() {
+  if (mStagedModel != nullptr)
+    mStagedModel->Reset(this->sampleRate, this->samplesPerBlock);
+
+  else if (mModel != nullptr)
+    mModel->Reset(this->sampleRate, this->samplesPerBlock);
+}
+
+void NeuralAmpModeler::normalizeOutput(float **input, int numChannels,
+                                       int numSamples) {
+  if (!mModel)
+    return;
+  if (!mModel->HasLoudness())
+    return;
+
+  const double loudness = mModel->GetLoudness();
+  const double targetLoudness = -18.0;
+  const double gain = pow(10.0, (targetLoudness - loudness) / 20.0);
+
+  for (int c = 0; c < numChannels; c++) {
+    for (int f = 0; f < numSamples; f++) {
+      input[c][f] *= gain;
     }
-    catch (std::runtime_error& e)
-    {
-        if (mStagedModel != nullptr)
-        {
-            mStagedModel = nullptr;
-        }
-
-        std::cout << "woops" << std::endl;
-        std::cerr << "Failed to read DSP module" << std::endl;
-        std::cerr << e.what() << std::endl;
-
-        return false;
-    }
+  }
 }
 
-bool NeuralAmpModeler::isModelLoaded()
-{
-    return this->modelLoaded;
+void NeuralAmpModeler::updateParameters() {
+  outputNormalized = bool(params[Parameters::kOutNorm]->load());
+
+  // Tone Stack
+  toneStackActive = bool(params[Parameters::kEQActive]->load());
+
+  // Noise Gate
+  noiseGateActive = int(params[Parameters::kNoiseGateThreshold]->load()) < -100
+                        ? false
+                        : true;
+
+  if (toneStackActive) {
+    mToneStack->SetParam("bass", params[Parameters::kToneBass]->load());
+    mToneStack->SetParam("middle", params[Parameters::kToneMid]->load());
+    mToneStack->SetParam("treble", params[Parameters::kToneTreble]->load());
+  }
+
+  if (noiseGateActive) {
+    const dsp::noise_gate::TriggerParams triggerParams(
+        this->ns_time, params[Parameters::kNoiseGateThreshold]->load(),
+        this->ns_ratio, this->ns_openTime, this->ns_holdTime,
+        this->ns_closeTime);
+
+    mNoiseGateTrigger.SetParams(triggerParams);
+  }
 }
 
-void NeuralAmpModeler::clearModel()
-{
-    this->shouldRemoveModel = true;
+void NeuralAmpModeler::createParameters(
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> &parameters) {
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "INPUT_ID", "INPUT", -20.0f, 20.0f, 0.0f));
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "NGATE_ID", "NGATE", -101.0f, 0.0f, -80.0f));
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "BASS_ID", "BASS", 0.0f, 10.0f, 5.0f));
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "MIDDLE_ID", "MIDDLE", 0.0f, 10.0f, 5.0f));
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "TREBLE_ID", "TREBLE", 0.0f, 10.0f, 5.0f));
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "OUTPUT_ID", "OUTPUT", -40.0f, 40.0f, 0.0f));
+  parameters.push_back(std::make_unique<juce::AudioParameterBool>(
+      "TONE_STACK_ON_ID", "TONE_STACK_ON", true, "TONE_STACK_ON"));
+  parameters.push_back(std::make_unique<juce::AudioParameterBool>(
+      "NORMALIZE_ID", "NORMALIZE", false, "NORMALIZE"));
+
+  DBG("NAM Parameters Created!");
 }
 
-void NeuralAmpModeler::applyDSPStaging()
-{
-    // Remove marked modules
-    if (shouldRemoveModel)
-    {
-        mModel = nullptr;
-        shouldRemoveModel = false;
-        //_UpdateLatency();
-    }
+void NeuralAmpModeler::hookParameters(
+    juce::AudioProcessorValueTreeState &apvts) {
+  params[Parameters::kInputLevel] = apvts.getRawParameterValue("INPUT_ID");
+  params[Parameters::kNoiseGateThreshold] =
+      apvts.getRawParameterValue("NGATE_ID");
+  params[Parameters::kToneBass] = apvts.getRawParameterValue("BASS_ID");
+  params[Parameters::kToneMid] = apvts.getRawParameterValue("MIDDLE_ID");
+  params[Parameters::kToneTreble] = apvts.getRawParameterValue("TREBLE_ID");
+  params[Parameters::kOutputLevel] = apvts.getRawParameterValue("OUTPUT_ID");
+  params[Parameters::kEQActive] =
+      apvts.getRawParameterValue("TONE_STACK_ON_ID");
+  params[Parameters::kOutNorm] = apvts.getRawParameterValue("NORMALIZE_ID");
 
-    // Move things from staged to live
-    if (mStagedModel != nullptr)
-    {
-        // Move from staged to active DSP
-        mModel = std::move(mStagedModel);
-        mStagedModel = nullptr;
-        modelLoaded = true;
-        //_UpdateLatency();
-    }
+  DBG("NAM Parameters Hooked!");
 }
 
-void NeuralAmpModeler::resetModel()
-{
-    if (mStagedModel != nullptr)
-        mStagedModel->Reset(this->sampleRate, this->samplesPerBlock);
-
-    else if (mModel != nullptr)
-        mModel->Reset(this->sampleRate, this->samplesPerBlock);
+double NeuralAmpModeler::dB_to_linear(double db_value) {
+  return std::pow(10.0, db_value / 20.0);
 }
 
-void NeuralAmpModeler::normalizeOutput(float** input, int numChannels, int numSamples)
-{
-    if (!mModel)
-        return;
-    if (!mModel->HasLoudness())
-        return;
+void NeuralAmpModeler::doDualMono(juce::AudioBuffer<float> &mainBuffer,
+                                  float **input) {
+  auto channelDataLeft = mainBuffer.getWritePointer(0);
+  auto channelDataRight = mainBuffer.getWritePointer(1);
 
-    const double loudness = mModel->GetLoudness();
-    const double targetLoudness = -18.0;
-    const double gain = pow(10.0, (targetLoudness - loudness) / 20.0);
-
-    for (int c = 0; c < numChannels; c++)
-    {
-        for (int f = 0; f < numSamples; f++)
-        {
-            input[c][f] *= gain;
-        }
-    }
-}
-
-void NeuralAmpModeler::updateParameters()
-{
-    outputNormalized = bool(params[Parameters::kOutNorm]->load());
-
-    // Tone Stack
-    toneStackActive = bool(params[Parameters::kEQActive]->load());
-
-    // Noise Gate
-    noiseGateActive = int(params[Parameters::kNoiseGateThreshold]->load()) < -100 ? false : true;
-
-    if (toneStackActive)
-    {
-        mToneStack->SetParam("bass", params[Parameters::kToneBass]->load());
-        mToneStack->SetParam("middle", params[Parameters::kToneMid]->load());
-        mToneStack->SetParam("treble", params[Parameters::kToneTreble]->load());
-    }
-
-    if (noiseGateActive)
-    {
-        const dsp::noise_gate::TriggerParams triggerParams(
-            this->ns_time, params[Parameters::kNoiseGateThreshold]->load(), this->ns_ratio, this->ns_openTime, this->ns_holdTime, this->ns_closeTime);
-
-        mNoiseGateTrigger.SetParams(triggerParams);
-    }
-}
-
-void NeuralAmpModeler::createParameters(std::vector<std::unique_ptr<juce::RangedAudioParameter>>& parameters)
-{
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("INPUT_ID", "INPUT", -20.0f, 20.0f, 0.0f));
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("NGATE_ID", "NGATE", -101.0f, 0.0f, -80.0f));
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("BASS_ID", "BASS", 0.0f, 10.0f, 5.0f));
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("MIDDLE_ID", "MIDDLE", 0.0f, 10.0f, 5.0f));
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("TREBLE_ID", "TREBLE", 0.0f, 10.0f, 5.0f));
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>("OUTPUT_ID", "OUTPUT", -40.0f, 40.0f, 0.0f));
-    parameters.push_back(std::make_unique<juce::AudioParameterBool>("TONE_STACK_ON_ID", "TONE_STACK_ON", true, "TONE_STACK_ON"));
-    parameters.push_back(std::make_unique<juce::AudioParameterBool>("NORMALIZE_ID", "NORMALIZE", false, "NORMALIZE"));
-
-    DBG("NAM Parameters Created!");
-}
-
-void NeuralAmpModeler::hookParameters(juce::AudioProcessorValueTreeState& apvts)
-{
-    params[Parameters::kInputLevel] = apvts.getRawParameterValue("INPUT_ID");
-    params[Parameters::kNoiseGateThreshold] = apvts.getRawParameterValue("NGATE_ID");
-    params[Parameters::kToneBass] = apvts.getRawParameterValue("BASS_ID");
-    params[Parameters::kToneMid] = apvts.getRawParameterValue("MIDDLE_ID");
-    params[Parameters::kToneTreble] = apvts.getRawParameterValue("TREBLE_ID");
-    params[Parameters::kOutputLevel] = apvts.getRawParameterValue("OUTPUT_ID");
-    params[Parameters::kEQActive] = apvts.getRawParameterValue("TONE_STACK_ON_ID");
-    params[Parameters::kOutNorm] = apvts.getRawParameterValue("NORMALIZE_ID");
-
-    DBG("NAM Parameters Hooked!");
-}
-
-double NeuralAmpModeler::dB_to_linear(double db_value)
-{
-    return std::pow(10.0, db_value / 20.0);
-}
-
-void NeuralAmpModeler::doDualMono(juce::AudioBuffer<float>& mainBuffer, float** input)
-{
-    auto channelDataLeft = mainBuffer.getWritePointer(0);
-    auto channelDataRight = mainBuffer.getWritePointer(1);
-
-    for (int sample = 0; sample < mainBuffer.getNumSamples(); ++sample)
-    {
-        channelDataRight[sample] = input[0][sample];
-        channelDataLeft[sample] = input[0][sample];
-    }
+  for (int sample = 0; sample < mainBuffer.getNumSamples(); ++sample) {
+    channelDataRight[sample] = input[0][sample];
+    channelDataLeft[sample] = input[0][sample];
+  }
 }
