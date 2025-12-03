@@ -83,5 +83,9 @@ private:
 
   PresetManager presetManager;
 
+  // Independent input/output gain parameters
+  std::atomic<float> *pluginInputGain;
+  std::atomic<float> *pluginOutputGain;
+
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamJUCEAudioProcessor)
 };

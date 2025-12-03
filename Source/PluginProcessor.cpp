@@ -88,6 +88,10 @@ void NamJUCEAudioProcessor::prepareToPlay(double sampleRate,
   myNAM.prepare(spec);
   myNAM.hookParameters(apvts);
 
+  // Hook independent input/output gain parameters
+  pluginInputGain = apvts.getRawParameterValue("PLUGIN_INPUT_ID");
+  pluginOutputGain = apvts.getRawParameterValue("PLUGIN_OUTPUT_ID");
+
   doubler.prepare(spec);
 
   meterInSource.resize(getTotalNumOutputChannels(),
@@ -156,7 +160,6 @@ bool NamJUCEAudioProcessor::isBusesLayoutSupported(
 
 void NamJUCEAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
                                          juce::MidiBuffer &midiMessages) {
-  meterInSource.measureBlock(buffer);
   juce::ScopedNoDenormals noDenormals;
   auto totalNumInputChannels = getTotalNumInputChannels();
   auto totalNumOutputChannels = getTotalNumOutputChannels();
@@ -169,6 +172,11 @@ void NamJUCEAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   auto *channelDataLeft = buffer.getWritePointer(0);
   auto *channelDataRight = buffer.getWritePointer(1);
 
+  // Apply independent input gain BEFORE input metering
+  buffer.applyGain(std::powf(10.0f, pluginInputGain->load() / 20.0f));
+
+  meterInSource.measureBlock(buffer);
+
   myNAM.processBlock(buffer);
 
   // Do Dual Mono
@@ -180,6 +188,9 @@ void NamJUCEAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     doubler.setDelayMs(*apvts.getRawParameterValue("DOUBLER_SPREAD_ID"));
     doubler.process(buffer);
   }
+
+  // Apply independent output gain AFTER doubler, BEFORE output metering
+  buffer.applyGain(std::powf(10.0f, pluginOutputGain->load() / 20.0f));
 
   meterOutSource.measureBlock(buffer);
 }
@@ -202,6 +213,12 @@ NamJUCEAudioProcessor::createParameters() {
   std::vector<std::unique_ptr<juce::RangedAudioParameter>> parameters;
 
   myNAM.createParameters(parameters);
+
+  // Independent input/output gain parameters
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "PLUGIN_INPUT_ID", "PLUGIN_INPUT", -20.0f, 20.0f, 0.0f));
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "PLUGIN_OUTPUT_ID", "PLUGIN_OUTPUT", -20.0f, 20.0f, 0.0f));
 
   auto normRange = NormalisableRange<float>(0.0, 20.0, 0.1f);
   parameters.push_back(std::make_unique<juce::AudioParameterFloat>(

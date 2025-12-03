@@ -97,10 +97,9 @@ The resulting binaries can be found under <u>`build/NEURAL_AMP_MODELER_artefacts
 - MacOS
 - Linux
 
-## <a id="suppoprted-formats"></a> Supported Formats
+## <a id="supported-formats"></a> Supported Formats
 
 - VST3
-- AU
 - Standalone Application
 
 <br/>
@@ -109,12 +108,26 @@ Note: The Standalone application for Windows doesn't support ASIO by default. Fo
 
 More plugin formats like LV2 and Legacy VST can be built by providing the appropriate SDK paths and setting the corresponding JUCE flags in the main `CMakeLists.txt` file.
 
-## <a id="getting-models"></a> Getting Models
-You can find Models and Impulse Responses shared by the community on [ToneHunt](https://tonehunt.org).
 
 ------
 
-- remove tonestack toggle
-- remove normalize toggle
-- decouple tone stack and doubler + gate from UI (NUMSLIDERS ARRAY)
-- add two new buttons for master input and output
+
+
+### TODO
+<!-- 
+- remove tonestack toggle DONE
+- remove normalize toggle DONE
+- decouple tone stack and doubler + gate from UI (NUMSLIDERS ARRAY) DONE
+- add two new buttons for master input and output DONE -->
+
+<!-- - Modern knobs are not very sharp, could be improved -->
+<!-- - add knob labels for top row -->
+<!-- - add value of top row knobs below them -->
+<!-- - remove on hover label for gate and doubler knobs -->
+<!-- - change positioning preset manager -->
+- style preset manager
+<!-- - remove getModels from settings menu -->
+- make dark grey meter take up entire background space
+- Change name of plugin to CraftLabs instead of the original creators name
+<!-- - remove Model loaded debug label -->
+- Future: possibly add other scale options

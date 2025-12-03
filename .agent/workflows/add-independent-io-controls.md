@@ -17,8 +17,8 @@ Input Signal
 → NAM Model Processing
 → Tone Stack
 → NAM Output Gain (existing, part of NAM model)
-→ [NEW] Independent Output Gain
 → Doubler
+→ [NEW] Independent Output Gain
 → Output Meter
 ```
 
@@ -81,7 +81,14 @@ buffer.applyGain(dB_to_linear(pluginInputGain->load()));
 
 meterInSource.measureBlock(buffer);
 
-// ... existing code (NAM processing, doubler) ...
+// ... existing NAM processing ...
+myNAM.processBlock(buffer);
+
+// ... existing doubler processing ...
+if (*apvts.getRawParameterValue("DOUBLER_SPREAD_ID") > 0.0) {
+  doubler.setDelayMs(*apvts.getRawParameterValue("DOUBLER_SPREAD_ID"));
+  doubler.process(buffer);
+}
 
 // Apply independent output gain AFTER doubler, BEFORE output metering
 buffer.applyGain(dB_to_linear(pluginOutputGain->load()));
@@ -91,15 +98,17 @@ meterOutSource.measureBlock(buffer);
 
 **Add helper method:**
 ```cpp
-// In private section or as inline
+// In PluginProcessor.h private section or as inline in .cpp
 double dB_to_linear(double db_value) {
   return std::pow(10.0, db_value / 20.0);
 }
 ```
 
 **Why:** 
-- Input gain affects what level hits the amp (and meters show post-input-gain level)
-- Output gain is the final level control (meters show final output level)
+- Input gain is the very first thing applied (before meters show level)
+- Doubler processes the stereo effect
+- Output gain is the final level control after all processing
+- Meters show the actual levels at input and output stages
 
 ---
 
@@ -152,65 +161,81 @@ juce::String sliderIDs[NUM_SLIDERS]{
 ### 4. **NamEditor.cpp**
 **Location:** `/Users/timpelser/Documents/SideProjects/Mayerism/codebase/nam-juce/Source/NamEditor.cpp`
 
-#### **Change A: Update positioning logic (lines 21-48)**
+#### **Change A: Update positioning logic (lines 21-71)**
 
-**Current positioning:**
-- `xStart = 266`
-- `xOffsetMultiplier = 74`
-- Main row knobs: Input, Bass, Middle, Treble, Output
-- Special positioned: NoiseGate, Doubler
+**UI Layout Strategy:**
+- **Row 1 (utility/effects)**: PluginInput, NoiseGate, Doubler, PluginOutput - positioned manually
+- **Row 2 (NAM amp controls)**: Input, Bass, Middle, Treble, Output - positioned in loop
 
-**New positioning strategy:**
-You have several options:
-
-**Option 1: Add to main row (requires UI space check)**
-- Main row: PluginInput, Input, Bass, Middle, Treble, Output, PluginOutput
-- Still exclude NoiseGate and Doubler from main row
-
-**Option 2: Smart positioning**
-- PluginInput: Position before/near Input meter (left side)
-- PluginOutput: Position after/near Output meter (right side)
-- Keep middle section as-is
-
-**Option 3: Adjust spacing**
-- Reduce `xOffsetMultiplier` slightly to fit all 7 knobs in main row
-- Or adjust `xStart` to shift everything
-
-**Recommended positioning code:**
+**Update the main row loop (around line 32-48):**
 ```cpp
-// Update the positioning condition to exclude NoiseGate, Doubler, and the independent controls
-if (slider != PluginKnobs::NoiseGate && 
-    slider != PluginKnobs::Doubler &&
-    slider != PluginKnobs::PluginInput &&
-    slider != PluginKnobs::PluginOutput) {
-  sliders[slider]->setBounds(xStart + (positionIndex * xOffsetMultiplier),
-                             450, knobSize, knobSize);
-  positionIndex++;
+// Setup sliders
+int positionIndex = 0; // Counter for main row (NAM controls) positioning
+for (int slider = 0; slider < NUM_SLIDERS; ++slider) {
+  sliders[slider].reset(new CustomSlider());
+  addAndMakeVisible(sliders[slider].get());
+  sliders[slider]->setLookAndFeel(&lnf);
+  sliders[slider]->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+  sliders[slider]->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+
+  // Position only NAM amp controls in main row
+  // Exclude: PluginInput, NoiseGate, Doubler, PluginOutput
+  if (slider != PluginKnobs::PluginInput && 
+      slider != PluginKnobs::NoiseGate && 
+      slider != PluginKnobs::Doubler &&
+      slider != PluginKnobs::PluginOutput) {
+    sliders[slider]->setBounds(xStart + (positionIndex * xOffsetMultiplier),
+                               450, knobSize, knobSize);
+    positionIndex++;
+  }
 }
 ```
 
-**Then manually position the new knobs:**
+**Add manual positioning for Row 1 controls (after the loop, before line 51):**
 ```cpp
-// Position PluginInput (near input meter, left side)
+// Position Row 1 controls manually (PluginInput, Gate, Doubler, PluginOutput)
+
+// PluginInput - leftmost position
 sliders[PluginKnobs::PluginInput]->setBounds(
-    80,   // X position (adjust based on your UI)
-    230,  // Y position (adjust based on your UI)
+    sliders[PluginKnobs::Input]->getX() - 140,  // Align with row structure
+    80,  // Same Y as NoiseGate/Doubler
     knobSize, knobSize
 );
 
-// Position PluginOutput (near output meter, right side)
+// NoiseGate - already positioned (keep existing code at lines 60-64)
+sliders[PluginKnobs::NoiseGate]->setBounds(
+    sliders[PluginKnobs::Output]->getX() - 140,
+    80,
+    knobSize, knobSize
+);
+sliders[PluginKnobs::NoiseGate]->setPopupDisplayEnabled(true, true, getTopLevelComponent());
+sliders[PluginKnobs::NoiseGate]->setCustomSlider(CustomSlider::SliderTypes::Gate);
+sliders[PluginKnobs::NoiseGate]->addListener(this);
+
+// Doubler - already positioned (keep existing code at lines 51-58)
+sliders[PluginKnobs::Doubler]->setPopupDisplayEnabled(true, true, getTopLevelComponent());
+sliders[PluginKnobs::Doubler]->setCustomSlider(CustomSlider::SliderTypes::Doubler);
+sliders[PluginKnobs::Doubler]->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+sliders[PluginKnobs::Doubler]->setBounds(
+    sliders[PluginKnobs::Output]->getX(),
+    80,
+    knobSize, knobSize
+);
+
+// PluginOutput - rightmost position (after Doubler)
 sliders[PluginKnobs::PluginOutput]->setBounds(
-    getWidth() - 130,  // X position (adjust based on your UI)
-    230,               // Y position (adjust based on your UI)
+    sliders[PluginKnobs::Doubler]->getX() + 140,  // To the right of Doubler
+    80,  // Same Y as other Row 1 controls
     knobSize, knobSize
 );
-
-// Or add them to the main row by reducing spacing:
-// int xOffsetMultiplier = 66;  // Reduced from 74
-// Then let them be positioned in the main row loop
 ```
 
-**Why:** UI needs to accommodate the two new knobs. Exact positioning depends on your background image design.
+**Why:** 
+- All sliders remain in one array
+- Use enum indexes to differentiate positioning
+- Row 1 (utility) controls are manually positioned together at Y=80
+- Row 2 (NAM amp) controls use the automatic main row loop at Y=450
+- Maintains existing NoiseGate and Doubler positioning logic while adding PluginInput and PluginOutput
 
 ---
 
@@ -244,19 +269,6 @@ After implementation, verify:
 
 ---
 
-## UI Labeling Suggestions
-
-For visual clarity, consider labeling the knobs as:
-
-- **PluginInput** → "**TRIM**" or "**IN**" (to differentiate from NAM Input)
-- **NAM Input** → "**GAIN**" or "**DRIVE**" (currently labeled "INPUT")
-- **NAM Output** → "**VOLUME**" or "**MASTER**" (currently labeled "OUTPUT")
-- **PluginOutput** → "**OUTPUT**" or "**OUT**" 
-
-This makes the distinction clear to users.
-
----
-
 ## Estimated Implementation Time
 - **Code changes**: 30-45 minutes
 - **UI positioning/testing**: 15-30 minutes (depends on background image alignment needs)
@@ -267,14 +279,24 @@ This makes the distinction clear to users.
 
 ## Notes
 
-1. **Meter positioning**: The current implementation shows meters AFTER processing. With independent input gain, the input meter will now show the level after the PluginInput gain is applied.
+1. **Signal flow order**: The final processing order is:
+   - PluginInput gain → Input meter → NAM processing → Doubler → PluginOutput gain → Output meter
+   - This ensures the output gain controls the final level after all effects
 
 2. **Gain staging workflow**:
    - User adjusts PluginInput to match their guitar/pickup to desired level
    - User adjusts NAM Input to control amp drive/saturation
    - User adjusts NAM Output as part of amp tone
+   - Doubler adds stereo width
    - User adjusts PluginOutput to match final level in mix
 
-3. **Doubler placement**: Doubler remains after all gain stages, which is correct for stereo widening.
+3. **UI Layout**:
+   - **Row 1 (Y=80)**: PluginInput, NoiseGate, Doubler, PluginOutput - utility and effects controls
+   - **Row 2 (Y=450)**: Input, Bass, Mid, Treble, Output - NAM amp model controls
+   - All sliders in one array, different positioning based on enum index
 
-4. **UI space**: You'll need to verify that your background image has space for 2 additional knobs, or adjust the layout accordingly.
+4. **Metering**: 
+   - Input meter shows level after PluginInput gain is applied
+   - Output meter shows final output level after all processing including PluginOutput gain
+
+5. **No labeling yet**: Labels for the knobs will be added in a future update

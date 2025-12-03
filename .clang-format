@@ -1,86 +1,26 @@
-AccessModifierOffset: -4
+BasedOnStyle:  GNU
 AlignAfterOpenBracket: Align
-AlignConsecutiveAssignments: false
-AlignConsecutiveDeclarations: false
-AlignEscapedNewlines: Right
-AlignOperands: true
-AlignTrailingComments: false
 AllowAllParametersOfDeclarationOnNextLine: false
-AllowShortLambdasOnASingleLine: true
 AllowShortBlocksOnASingleLine: true
 AllowShortCaseLabelsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: Inline
-AllowShortIfStatementsOnASingleLine: false
-AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: All
+# Uncommenting these lines will sometimes result in lines following an
+# if(){} or for(){} block being attached to the end of the block.
+# AllowShortIfStatementsOnASingleLine: true
+# AllowShortLoopsOnASingleLine: true
 AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
-AlwaysBreakBeforeMultilineStrings: true
-AlwaysBreakTemplateDeclarations: true
-BinPackArguments: true
-BinPackParameters: true
-BreakBeforeBraces: Custom
-BraceWrapping:
-  AfterCaseLabel: true
-  AfterClass: true
-  AfterControlStatement: true
-  AfterEnum: true
-  AfterFunction: true
-  AfterNamespace: true
-  AfterStruct: true
-  AfterUnion: true
-  BeforeCatch: true
-  BeforeElse: true
-  IndentBraces: false
-  SplitEmptyFunction: true
-  SplitEmptyRecord: true
-  SplitEmptyNamespace: true
-  BeforeLambdaBody: true
-BreakBeforeBinaryOperators: NonAssignment
-BreakBeforeInheritanceComma: false
-BreakBeforeTernaryOperators: true
-BreakConstructorInitializers: BeforeColon
-BreakStringLiterals: true
-ColumnLimit: 150
-CompactNamespaces: false
-ConstructorInitializerAllOnOneLineOrOnePerLine: false
-ConstructorInitializerIndentWidth: 4
-ContinuationIndentWidth: 4
+BreakBeforeBraces: None
+ContinuationIndentWidth: 2
 Cpp11BracedListStyle: true
-DerivePointerAlignment: false
-FixNamespaceComments: true
-IndentCaseLabels: true
-IndentPPDirectives: BeforeHash
-IndentWidth: 4
-#TabWidth: 2
-IndentWrappedFunctionNames: false
-KeepEmptyLinesAtTheStartOfBlocks: true
-MaxEmptyLinesToKeep: 2
-NamespaceIndentation: None
-ObjCBinPackProtocolList: Auto
-ObjCBlockIndentWidth: 2
-ObjCBreakBeforeNestedBlockParam: true
-ObjCSpaceAfterProperty: false
-ObjCSpaceBeforeProtocolList: true
-PenaltyBreakBeforeFirstCallParameter: 0
-PenaltyReturnTypeOnItsOwnLine: 1000
-PointerAlignment: Left
-ReflowComments: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+Language:        Cpp
+MaxEmptyLinesToKeep: 1
+NamespaceIndentation: All
+PenaltyExcessCharacter: 100
+PenaltyReturnTypeOnItsOwnLine: 1
+PointerAlignment: Right
 SortIncludes: false
-SortUsingDeclarations: true
-SpaceAfterCStyleCast: false
-SpaceAfterTemplateKeyword: true
-SpaceBeforeAssignmentOperators: true
-SpaceBeforeParens: Custom
-SpaceBeforeParensOptions:
-  AfterControlStatements: true
-  AfterFunctionDeclarationName: true
-SpaceInEmptyParentheses: false
-SpacesBeforeTrailingComments: 1
-SpacesInAngles: false
-SpacesInContainerLiterals: true
-SpacesInCStyleCastParentheses: false
-SpacesInParentheses: false
-SpacesInSquareBrackets: false
-Standard: Cpp11
-UseTab: Never 
-  
+SpaceBeforeParens: Never
+SpacesInContainerLiterals: false
+Standard:        Cpp11

@@ -370,13 +370,19 @@ public:
       if (value == 0)
         return "OFF";
       else
-        return juce::String(value) + " ms";
+        return juce::String(value, 1) + " ms";
       break;
     case SliderTypes::Gate:
       if (value == -101)
         return "OFF";
       else
-        return juce::String(value) + " dB";
+        return juce::String(value, 1) + " dB";
+      break;
+    case SliderTypes::PluginInput:
+      return juce::String(value, 1) + " dB";
+      break;
+    case SliderTypes::PluginOutput:
+      return juce::String(value, 1) + " dB";
       break;
     default:
       return String(value) + this->getTextValueSuffix();
@@ -384,7 +390,7 @@ public:
     }
   };
 
-  enum SliderTypes { Default = 0, Doubler, Gate };
+  enum SliderTypes { Default = 0, Doubler, Gate, PluginInput, PluginOutput };
 
 private:
   int sliderIndex{0};
