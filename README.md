@@ -133,7 +133,7 @@ More plugin formats like LV2 and Legacy VST can be built by providing the approp
 <!-- - add on off functionality for tube screamer -->
 <!-- - create tube screamer sliders -->
 <!-- - create tube screamer on/off knob -->
-- Style tube screamer on/off knob
+<!-- - Style tube screamer on/off knob -->
 - Fix standalone audio settings to support mono input
 - make dark grey meter take up entire background space
 - Change name of plugin to CraftLabs instead of the original creators name

@@ -7,6 +7,7 @@
 #include <ff_meters/ff_meters.h>
 #include "DoublerProcessor.h"
 #include "pedals/TubeScreamer/TSProcessor.h"
+#include "pedals/Compressor/CompressorProcessor.h"
 #include "PresetManager/PresetManager.h"
 // clang-format on
 
@@ -77,6 +78,7 @@ private:
 
   Doubler doubler;
   TSProcessor tsProcessor;
+  CompressorProcessor compressorProcessor;
 
   bool supportsDouble{false};
 
@@ -94,6 +96,12 @@ private:
   std::atomic<float> *tsTone;
   std::atomic<float> *tsLevel;
   std::atomic<float> *tsEnabled;
+
+  // Compressor parameters
+  std::atomic<float> *compVolume;
+  std::atomic<float> *compAttack;
+  std::atomic<float> *compSustain;
+  std::atomic<float> *compEnabled;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamJUCEAudioProcessor)
 };

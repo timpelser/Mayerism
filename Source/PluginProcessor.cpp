@@ -85,6 +85,8 @@ void NamJUCEAudioProcessor::prepareToPlay(double sampleRate,
   spec.numChannels = getNumOutputChannels();
   spec.maximumBlockSize = samplesPerBlock;
 
+  compressorProcessor.prepare(spec);
+
   tsProcessor.prepare(spec);
 
   myNAM.prepare(spec);
@@ -99,6 +101,12 @@ void NamJUCEAudioProcessor::prepareToPlay(double sampleRate,
   tsTone = apvts.getRawParameterValue("TS_TONE_ID");
   tsLevel = apvts.getRawParameterValue("TS_LEVEL_ID");
   tsEnabled = apvts.getRawParameterValue("TS_ENABLED_ID");
+
+  // Hook Compressor parameters
+  compVolume = apvts.getRawParameterValue("COMP_VOLUME_ID");
+  compAttack = apvts.getRawParameterValue("COMP_ATTACK_ID");
+  compSustain = apvts.getRawParameterValue("COMP_SUSTAIN_ID");
+  compEnabled = apvts.getRawParameterValue("COMP_ENABLED_ID");
 
   doubler.prepare(spec);
 
@@ -185,6 +193,14 @@ void NamJUCEAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 
   meterInSource.measureBlock(buffer);
 
+  // Compressor (at beginning of chain, before TS and amp)
+  if (compEnabled->load() > 0.5f) {
+    compressorProcessor.setVolume(compVolume->load());
+    compressorProcessor.setAttack(compAttack->load());
+    compressorProcessor.setSustain(compSustain->load());
+    compressorProcessor.process(buffer);
+  }
+
   // TubeScreamer TS808 (before amp) - only process if enabled
   if (tsEnabled->load() > 0.5f) {
     tsProcessor.setDrive(tsDrive->load());
@@ -245,6 +261,16 @@ NamJUCEAudioProcessor::createParameters() {
       "TS_LEVEL_ID", "TS_LEVEL", 0.0f, 10.0f, 5.0f));
   parameters.push_back(std::make_unique<juce::AudioParameterBool>(
       "TS_ENABLED_ID", "TS_ENABLED", false));
+
+  // Compressor parameters
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "COMP_VOLUME_ID", "COMP_VOLUME", 0.0f, 10.0f, 5.0f));
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "COMP_ATTACK_ID", "COMP_ATTACK", 5.0f, 50.0f, 26.38f));
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "COMP_SUSTAIN_ID", "COMP_SUSTAIN", 50.0f, 500.0f, 263.75f));
+  parameters.push_back(std::make_unique<juce::AudioParameterBool>(
+      "COMP_ENABLED_ID", "COMP_ENABLED", false));
 
   auto normRange = NormalisableRange<float>(0.0, 20.0, 0.1f);
   parameters.push_back(std::make_unique<juce::AudioParameterFloat>(

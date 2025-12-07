@@ -58,10 +58,15 @@ NamEditor::NamEditor(NamJUCEAudioProcessor &p)
 
   initializeTSSliders();
 
+  initializeCompSliders();
+
   initializeSliderAttachments();
 
   // Update TS toggle appearance to match initial state
   updateTSToggleAppearance();
+
+  // Update Compressor toggle appearance to match initial state
+  updateCompToggleAppearance();
 
   addAndMakeVisible(&pmc);
   pmc.setColour(juce::Colours::transparentWhite, 0.0f);
@@ -282,6 +287,12 @@ void NamEditor::setKnobVisibility() {
     sliders[PluginKnobs::TSTone]->setVisible(true);
     sliders[PluginKnobs::TSLevel]->setVisible(true);
     tsEnabledToggle->setVisible(true);
+
+    // Show Compressor controls
+    sliders[PluginKnobs::CompVolume]->setVisible(true);
+    sliders[PluginKnobs::CompAttack]->setVisible(true);
+    sliders[PluginKnobs::CompSustain]->setVisible(true);
+    compEnabledToggle->setVisible(true);
     break;
 
   case AMP:
@@ -297,6 +308,12 @@ void NamEditor::setKnobVisibility() {
     sliders[PluginKnobs::TSTone]->setVisible(false);
     sliders[PluginKnobs::TSLevel]->setVisible(false);
     tsEnabledToggle->setVisible(false);
+
+    // Hide Compressor controls
+    sliders[PluginKnobs::CompVolume]->setVisible(false);
+    sliders[PluginKnobs::CompAttack]->setVisible(false);
+    sliders[PluginKnobs::CompSustain]->setVisible(false);
+    compEnabledToggle->setVisible(false);
     break;
 
   case POST_EFFECTS:
@@ -312,6 +329,12 @@ void NamEditor::setKnobVisibility() {
     sliders[PluginKnobs::TSTone]->setVisible(false);
     sliders[PluginKnobs::TSLevel]->setVisible(false);
     tsEnabledToggle->setVisible(false);
+
+    // Hide Compressor controls
+    sliders[PluginKnobs::CompVolume]->setVisible(false);
+    sliders[PluginKnobs::CompAttack]->setVisible(false);
+    sliders[PluginKnobs::CompSustain]->setVisible(false);
+    compEnabledToggle->setVisible(false);
     break;
   }
 }
@@ -467,7 +490,6 @@ void NamEditor::initializeAmpSliders() {
 void NamEditor::initializeTSSliders() {
   const int knobSize = 53;
 
-  // Simple centered positioning (will be adjusted later)
   const int xStart = 497;
   const int xOffsetMultiplier = 65;
   const int yPosition = 261;
@@ -519,6 +541,59 @@ void NamEditor::initializeTSSliders() {
   tsEnabledToggle->setBounds(561, 433, 53, 53);
 }
 
+void NamEditor::initializeCompSliders() {
+  const int knobSize = 53;
+
+  const int xStart = 48;
+  const int xOffsetMultiplier = 57;
+  const int yPosition = 261;
+
+  // Compressor slider IDs
+  const int compSliders[] = {PluginKnobs::CompVolume, PluginKnobs::CompAttack,
+                             PluginKnobs::CompSustain};
+
+  for (int i = 0; i < 3; ++i) {
+    auto &slider = sliders[compSliders[i]];
+
+    // Basic setup
+    slider.reset(new CustomSlider());
+    addAndMakeVisible(slider.get());
+
+    // Apply pre-effects look and feel (same as TS)
+    slider->setLookAndFeel(&lnfPreEffects);
+    slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+
+    // Position in row
+    slider->setBounds(xStart + (i * xOffsetMultiplier), yPosition, knobSize,
+                      knobSize);
+
+    slider->addListener(this);
+  }
+
+  // Compressor Enable toggle
+  compEnabledToggle = std::make_unique<juce::ImageButton>("Comp Enable");
+  addAndMakeVisible(compEnabledToggle.get());
+
+  // Set up the button to act as a toggle button
+  compEnabledToggle->setClickingTogglesState(true);
+
+  // Use same pedal button images as TS
+  compEnabledToggle->setImages(
+      false, true, true, pedalButtonOff, 1.0f,
+      juce::Colours::transparentBlack,                        // normal
+      pedalButtonOff, 0.8f, juce::Colours::transparentBlack,  // over
+      pedalButtonOff, 1.0f, juce::Colours::transparentBlack); // down
+
+  // Add onClick handler to update appearance when toggled
+  compEnabledToggle->onClick = [this]() { updateCompToggleAppearance(); };
+
+  compEnabledToggle->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+
+  // Placeholder position
+  compEnabledToggle->setBounds(104, 433, 53, 53);
+}
+
 void NamEditor::updateTSToggleAppearance() {
   // Update the button images based on toggle state
   bool isToggled = tsEnabledToggle->getToggleState();
@@ -533,6 +608,27 @@ void NamEditor::updateTSToggleAppearance() {
   } else {
     // Show OFF image when disabled
     tsEnabledToggle->setImages(
+        false, true, true, pedalButtonOff, 1.0f,
+        juce::Colours::transparentBlack,                        // normal
+        pedalButtonOff, 1.0f, juce::Colours::transparentBlack,  // over
+        pedalButtonOff, 1.0f, juce::Colours::transparentBlack); // down
+  }
+}
+
+void NamEditor::updateCompToggleAppearance() {
+  // Update the button images based on toggle state
+  bool isToggled = compEnabledToggle->getToggleState();
+
+  if (isToggled) {
+    // Show ON image when enabled
+    compEnabledToggle->setImages(
+        false, true, true, pedalButtonOn, 1.0f,
+        juce::Colours::transparentBlack,                       // normal
+        pedalButtonOn, 1.0f, juce::Colours::transparentBlack,  // over
+        pedalButtonOn, 1.0f, juce::Colours::transparentBlack); // down
+  } else {
+    // Show OFF image when disabled
+    compEnabledToggle->setImages(
         false, true, true, pedalButtonOff, 1.0f,
         juce::Colours::transparentBlack,                        // normal
         pedalButtonOff, 1.0f, juce::Colours::transparentBlack,  // over
@@ -558,4 +654,9 @@ void NamEditor::initializeSliderAttachments() {
   tsEnabledAttachment =
       std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
           audioProcessor.apvts, "TS_ENABLED_ID", *tsEnabledToggle);
+
+  // Attach Compressor Enable toggle button
+  compEnabledAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          audioProcessor.apvts, "COMP_ENABLED_ID", *compEnabledToggle);
 }

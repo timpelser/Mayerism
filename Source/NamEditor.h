@@ -7,7 +7,7 @@
 #include "PresetManager/PresetManagerComponent.h"
 // clang-format on
 
-#define NUM_SLIDERS 12
+#define NUM_SLIDERS 15
 
 class NamEditor : public juce::AudioProcessorEditor,
                   public juce::Timer,
@@ -36,7 +36,10 @@ public:
     Doubler,
     TSDrive,
     TSTone,
-    TSLevel
+    TSLevel,
+    CompVolume, // Compressor volume/makeup gain
+    CompAttack, // Compressor attack time
+    CompSustain // Compressor sustain/release time
   };
 
   enum PageIndex { PRE_EFFECTS = 0, AMP = 1, POST_EFFECTS = 2 };
@@ -47,9 +50,10 @@ private:
       sliderAttachments[NUM_SLIDERS];
 
   juce::String sliderIDs[NUM_SLIDERS]{
-      "PLUGIN_INPUT_ID", "INPUT_ID",    "NGATE_ID",   "BASS_ID",
-      "MIDDLE_ID",       "TREBLE_ID",   "OUTPUT_ID",  "PLUGIN_OUTPUT_ID",
-      "DOUBLER_ID",      "TS_DRIVE_ID", "TS_TONE_ID", "TS_LEVEL_ID"};
+      "PLUGIN_INPUT_ID", "INPUT_ID",       "NGATE_ID",       "BASS_ID",
+      "MIDDLE_ID",       "TREBLE_ID",      "OUTPUT_ID",      "PLUGIN_OUTPUT_ID",
+      "DOUBLER_ID",      "TS_DRIVE_ID",    "TS_TONE_ID",     "TS_LEVEL_ID",
+      "COMP_VOLUME_ID",  "COMP_ATTACK_ID", "COMP_SUSTAIN_ID"};
 
   // Page background images
   juce::Image backgroundPreEffects;
@@ -95,6 +99,11 @@ private:
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
       tsEnabledAttachment;
 
+  // Compressor enable/bypass toggle
+  std::unique_ptr<juce::ImageButton> compEnabledToggle;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
+      compEnabledAttachment;
+
   NamJUCEAudioProcessor &audioProcessor;
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamEditor)
 
@@ -111,10 +120,12 @@ private:
   void updatePageTabHighlight();
   void setKnobVisibility();
   void updateTSToggleAppearance();
+  void updateCompToggleAppearance();
 
   // Slider initialization functions
   void initializeTopRow();
   void initializeAmpSliders();
   void initializeTSSliders();
+  void initializeCompSliders();
   void initializeSliderAttachments();
 };
