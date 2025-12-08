@@ -8,6 +8,7 @@
 #include "DoublerProcessor.h"
 #include "pedals/TubeScreamer/TSProcessor.h"
 #include "pedals/Compressor/CompressorProcessor.h"
+#include "pedals/CleanBoost/CleanBoostProcessor.h"
 #include "PresetManager/PresetManager.h"
 // clang-format on
 
@@ -79,6 +80,7 @@ private:
   Doubler doubler;
   TSProcessor tsProcessor;
   CompressorProcessor compressorProcessor;
+  CleanBoostProcessor cleanBoostProcessor;
 
   bool supportsDouble{false};
 
@@ -102,6 +104,10 @@ private:
   std::atomic<float> *compAttack;
   std::atomic<float> *compSustain;
   std::atomic<float> *compEnabled;
+
+  // Clean Boost parameters
+  std::atomic<float> *boostVolume;
+  std::atomic<float> *boostEnabled;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamJUCEAudioProcessor)
 };

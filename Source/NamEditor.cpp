@@ -60,6 +60,8 @@ NamEditor::NamEditor(NamJUCEAudioProcessor &p)
 
   initializeCompSliders();
 
+  initializeBoostSliders();
+
   initializeSliderAttachments();
 
   // Update TS toggle appearance to match initial state
@@ -67,6 +69,9 @@ NamEditor::NamEditor(NamJUCEAudioProcessor &p)
 
   // Update Compressor toggle appearance to match initial state
   updateCompToggleAppearance();
+
+  // Update Boost toggle appearance to match initial state
+  updateBoostToggleAppearance();
 
   addAndMakeVisible(&pmc);
   pmc.setColour(juce::Colours::transparentWhite, 0.0f);
@@ -293,6 +298,10 @@ void NamEditor::setKnobVisibility() {
     sliders[PluginKnobs::CompAttack]->setVisible(true);
     sliders[PluginKnobs::CompSustain]->setVisible(true);
     compEnabledToggle->setVisible(true);
+
+    // Show Boost controls
+    sliders[PluginKnobs::BoostVolume]->setVisible(true);
+    boostEnabledToggle->setVisible(true);
     break;
 
   case AMP:
@@ -314,6 +323,10 @@ void NamEditor::setKnobVisibility() {
     sliders[PluginKnobs::CompAttack]->setVisible(false);
     sliders[PluginKnobs::CompSustain]->setVisible(false);
     compEnabledToggle->setVisible(false);
+
+    // Hide Boost controls
+    sliders[PluginKnobs::BoostVolume]->setVisible(false);
+    boostEnabledToggle->setVisible(false);
     break;
 
   case POST_EFFECTS:
@@ -335,6 +348,10 @@ void NamEditor::setKnobVisibility() {
     sliders[PluginKnobs::CompAttack]->setVisible(false);
     sliders[PluginKnobs::CompSustain]->setVisible(false);
     compEnabledToggle->setVisible(false);
+
+    // Hide Boost controls
+    sliders[PluginKnobs::BoostVolume]->setVisible(false);
+    boostEnabledToggle->setVisible(false);
     break;
   }
 }
@@ -594,6 +611,54 @@ void NamEditor::initializeCompSliders() {
   compEnabledToggle->setBounds(104, 433, 53, 53);
 }
 
+void NamEditor::initializeBoostSliders() {
+  const int knobSize = 62;
+
+  const int xStart = 324;
+  const int yPosition = 260; // Same Y as other pedals
+
+  auto &slider = sliders[PluginKnobs::BoostVolume];
+
+  // Basic setup
+  slider.reset(new CustomSlider());
+  addAndMakeVisible(slider.get());
+
+  // Apply pre-effects look and feel
+  slider->setLookAndFeel(&lnfPreEffects);
+  slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+  slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+
+  // Position
+  slider->setBounds(xStart, yPosition, knobSize, knobSize);
+
+  slider->addListener(this);
+
+  // Boost Enable toggle
+  boostEnabledToggle = std::make_unique<juce::ImageButton>("Boost Enable");
+  addAndMakeVisible(boostEnabledToggle.get());
+
+  // Set up the button to act as a toggle button
+  boostEnabledToggle->setClickingTogglesState(true);
+
+  // Use same pedal button images
+  boostEnabledToggle->setImages(
+      false, true, true, pedalButtonOff, 1.0f,
+      juce::Colours::transparentBlack,                        // normal
+      pedalButtonOff, 0.8f, juce::Colours::transparentBlack,  // over
+      pedalButtonOff, 1.0f, juce::Colours::transparentBlack); // down
+
+  // Add onClick handler to update appearance when toggled
+  boostEnabledToggle->onClick = [this]() { updateBoostToggleAppearance(); };
+
+  boostEnabledToggle->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+
+  // Position below knob (roughly centered)
+  // Comp toggle is at x=104 (knobs at 48, 105, 162) -> toggle ~middle knob
+  // TS toggle is at x=561 (knobs at 497, 562, 627) -> toggle ~middle knob
+  // Boost knob is at 310. Toggle should be centered below it.
+  boostEnabledToggle->setBounds(327, 433, 53, 53);
+}
+
 void NamEditor::updateTSToggleAppearance() {
   // Update the button images based on toggle state
   bool isToggled = tsEnabledToggle->getToggleState();
@@ -636,6 +701,27 @@ void NamEditor::updateCompToggleAppearance() {
   }
 }
 
+void NamEditor::updateBoostToggleAppearance() {
+  // Update the button images based on toggle state
+  bool isToggled = boostEnabledToggle->getToggleState();
+
+  if (isToggled) {
+    // Show ON image when enabled
+    boostEnabledToggle->setImages(
+        false, true, true, pedalButtonOn, 1.0f,
+        juce::Colours::transparentBlack,                       // normal
+        pedalButtonOn, 1.0f, juce::Colours::transparentBlack,  // over
+        pedalButtonOn, 1.0f, juce::Colours::transparentBlack); // down
+  } else {
+    // Show OFF image when disabled
+    boostEnabledToggle->setImages(
+        false, true, true, pedalButtonOff, 1.0f,
+        juce::Colours::transparentBlack,                        // normal
+        pedalButtonOff, 1.0f, juce::Colours::transparentBlack,  // over
+        pedalButtonOff, 1.0f, juce::Colours::transparentBlack); // down
+  }
+}
+
 void NamEditor::initializeSliderAttachments() {
   // Hook slider attachments
   for (int slider = 0; slider < NUM_SLIDERS; ++slider) {
@@ -659,4 +745,9 @@ void NamEditor::initializeSliderAttachments() {
   compEnabledAttachment =
       std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
           audioProcessor.apvts, "COMP_ENABLED_ID", *compEnabledToggle);
+
+  // Attach Boost Enable toggle button
+  boostEnabledAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          audioProcessor.apvts, "BOOST_ENABLED_ID", *boostEnabledToggle);
 }
