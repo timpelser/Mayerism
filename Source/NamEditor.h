@@ -7,7 +7,7 @@
 #include "PresetManager/PresetManagerComponent.h"
 // clang-format on
 
-#define NUM_SLIDERS 16
+#define NUM_SLIDERS 19
 
 class NamEditor : public juce::AudioProcessorEditor,
                   public juce::Timer,
@@ -37,10 +37,13 @@ public:
     TSDrive,
     TSTone,
     TSLevel,
-    CompVolume,  // Compressor volume/makeup gain
-    CompAttack,  // Compressor attack time
-    CompSustain, // Compressor sustain/release time
-    BoostVolume  // Clean Boost volume
+    CompVolume,   // Compressor volume/makeup gain
+    CompAttack,   // Compressor attack time
+    CompSustain,  // Compressor sustain/release time
+    BoostVolume,  // Clean Boost volume
+    ReverbMix,    // Reverb wet/dry mix
+    ReverbTone,   // Reverb damping/tone
+    ReverbSize    // Reverb room size
   };
 
   enum PageIndex { PRE_EFFECTS = 0, AMP = 1, POST_EFFECTS = 2 };
@@ -56,7 +59,8 @@ private:
       "OUTPUT_ID",       "PLUGIN_OUTPUT_ID", "DOUBLER_ID",
       "TS_DRIVE_ID",     "TS_TONE_ID",       "TS_LEVEL_ID",
       "COMP_VOLUME_ID",  "COMP_ATTACK_ID",   "COMP_SUSTAIN_ID",
-      "BOOST_VOLUME_ID"};
+      "BOOST_VOLUME_ID", "REVERB_MIX_ID",    "REVERB_TONE_ID",
+      "REVERB_SIZE_ID"};
 
   // Page background images
   juce::Image backgroundPreEffects;
@@ -71,11 +75,16 @@ private:
   juce::Image pedalButtonOn;
   juce::Image pedalButtonOff;
 
+  // Pedal button images for post-effects pedals
+  juce::Image pedalButtonOnPostEffects;
+  juce::Image pedalButtonOffPostEffects;
+
   // juce::TooltipWindow tooltipWindow{ this, 200 };
 
   knobLookAndFeel lnf{knobLookAndFeel::KnobTypes::Main};
   knobLookAndFeel lnfMinimal{knobLookAndFeel::KnobTypes::Minimal};
   knobLookAndFeel lnfPreEffects{knobLookAndFeel::KnobTypes::PreEffects};
+  knobLookAndFeel lnfPostEffects{knobLookAndFeel::KnobTypes::PostEffects};
 
   juce::String ngThreshold{"Null"};
 
@@ -112,6 +121,11 @@ private:
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
       boostEnabledAttachment;
 
+  // Reverb enable/bypass toggle
+  std::unique_ptr<juce::ImageButton> reverbEnabledToggle;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
+      reverbEnabledAttachment;
+
   NamJUCEAudioProcessor &audioProcessor;
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamEditor)
 
@@ -130,6 +144,7 @@ private:
   void updateTSToggleAppearance();
   void updateCompToggleAppearance();
   void updateBoostToggleAppearance();
+  void updateReverbToggleAppearance();
 
   // Slider initialization functions
   void initializeTopRow();
@@ -137,5 +152,6 @@ private:
   void initializeTSSliders();
   void initializeCompSliders();
   void initializeBoostSliders();
+  void initializeReverbSliders();
   void initializeSliderAttachments();
 };

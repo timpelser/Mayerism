@@ -114,7 +114,15 @@ void NamJUCEAudioProcessor::prepareToPlay(double sampleRate,
   boostVolume = apvts.getRawParameterValue("BOOST_VOLUME_ID");
   boostEnabled = apvts.getRawParameterValue("BOOST_ENABLED_ID");
 
+  // Hook Reverb parameters
+  reverbMix = apvts.getRawParameterValue("REVERB_MIX_ID");
+  reverbTone = apvts.getRawParameterValue("REVERB_TONE_ID");
+  reverbSize = apvts.getRawParameterValue("REVERB_SIZE_ID");
+  reverbEnabled = apvts.getRawParameterValue("REVERB_ENABLED_ID");
+
   doubler.prepare(spec);
+
+  reverbProcessor.prepare(spec);
 
   meterInSource.resize(getTotalNumOutputChannels(),
                        sampleRate * 0.1 / samplesPerBlock);
@@ -235,7 +243,15 @@ void NamJUCEAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     doubler.process(buffer);
   }
 
-  // Apply independent output gain AFTER doubler, BEFORE output metering
+  // Reverb (at end of chain, post-effects)
+  if (reverbEnabled->load() > 0.5f) {
+    reverbProcessor.setMix(reverbMix->load());
+    reverbProcessor.setTone(reverbTone->load());
+    reverbProcessor.setSize(reverbSize->load());
+    reverbProcessor.process(buffer);
+  }
+
+  // Apply independent output gain AFTER reverb, BEFORE output metering
   buffer.applyGain(std::powf(10.0f, pluginOutputGain->load() / 20.0f));
 
   meterOutSource.measureBlock(buffer);
@@ -297,6 +313,16 @@ NamJUCEAudioProcessor::createParameters() {
       "DOUBLER_SPREAD_ID", "DOUBLER_SPREAD", normRange, 0.0));
   parameters.push_back(std::make_unique<juce::AudioParameterBool>(
       "SMALL_WINDOW_ID", "SMALL_WINDOW", false, "SMALL_WINDOW"));
+
+  // Reverb parameters
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "REVERB_MIX_ID", "REVERB_MIX", 0.0f, 10.0f, 5.0f));
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "REVERB_TONE_ID", "REVERB_TONE", 0.0f, 10.0f, 5.0f));
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "REVERB_SIZE_ID", "REVERB_SIZE", 0.0f, 10.0f, 5.0f));
+  parameters.push_back(std::make_unique<juce::AudioParameterBool>(
+      "REVERB_ENABLED_ID", "REVERB_ENABLED", false));
 
   return {parameters.begin(), parameters.end()};
 }

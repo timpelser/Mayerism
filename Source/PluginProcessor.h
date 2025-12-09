@@ -9,6 +9,7 @@
 #include "pedals/TubeScreamer/TSProcessor.h"
 #include "pedals/Compressor/CompressorProcessor.h"
 #include "pedals/CleanBoost/CleanBoostProcessor.h"
+#include "pedals/Reverb/ReverbProcessor.h"
 #include "PresetManager/PresetManager.h"
 // clang-format on
 
@@ -81,6 +82,7 @@ private:
   TSProcessor tsProcessor;
   CompressorProcessor compressorProcessor;
   CleanBoostProcessor cleanBoostProcessor;
+  ReverbProcessor reverbProcessor;
 
   bool supportsDouble{false};
 
@@ -108,6 +110,12 @@ private:
   // Clean Boost parameters
   std::atomic<float> *boostVolume;
   std::atomic<float> *boostEnabled;
+
+  // Reverb parameters
+  std::atomic<float> *reverbMix;
+  std::atomic<float> *reverbTone;
+  std::atomic<float> *reverbSize;
+  std::atomic<float> *reverbEnabled;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamJUCEAudioProcessor)
 };

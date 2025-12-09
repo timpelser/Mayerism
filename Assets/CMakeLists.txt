@@ -10,6 +10,7 @@ juce_add_binary_data(BinaryData SOURCES
     arrowcontract.png
     knob_minimal.png
     knob_pre_effects.png
+    knob_post_effects.png
     AmpModels/tworock.nam
     PreIcon.png
     AmpIcon.png
@@ -20,6 +21,8 @@ juce_add_binary_data(BinaryData SOURCES
     backgroundpost.png
     PedalButtonOn.png
     PedalButtonOff.png
+    KnobOnPostEffects.png
+    KnobOffPostEffects.png
     ${SRC_FILES}
 )
 

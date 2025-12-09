@@ -6,7 +6,7 @@ using namespace juce;
 
 class knobLookAndFeel : public juce::LookAndFeel_V4 {
 public:
-  enum KnobTypes { Main = 0, Minimal, PreEffects };
+  enum KnobTypes { Main = 0, Minimal, PreEffects, PostEffects };
 
   knobLookAndFeel(KnobTypes knobType) {
     switch (knobType) {
@@ -22,6 +22,11 @@ public:
       knobImage =
           juce::ImageFileFormat::loadFrom(BinaryData::knob_pre_effects_png,
                                           BinaryData::knob_pre_effects_pngSize);
+      break;
+    case KnobTypes::PostEffects:
+      knobImage =
+          juce::ImageFileFormat::loadFrom(BinaryData::knob_post_effects_png,
+                                          BinaryData::knob_post_effects_pngSize);
       break;
     default:
       knobImage = juce::ImageFileFormat::loadFrom(BinaryData::knob_png,

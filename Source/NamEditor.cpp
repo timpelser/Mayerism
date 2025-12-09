@@ -21,6 +21,13 @@ NamEditor::NamEditor(NamJUCEAudioProcessor &p)
   pedalButtonOff = juce::ImageFileFormat::loadFrom(
       BinaryData::PedalButtonOff_png, BinaryData::PedalButtonOff_pngSize);
 
+  // Load pedal button images for post-effects pedals
+  pedalButtonOnPostEffects = juce::ImageFileFormat::loadFrom(
+      BinaryData::KnobOnPostEffects_png, BinaryData::KnobOnPostEffects_pngSize);
+  pedalButtonOffPostEffects = juce::ImageFileFormat::loadFrom(
+      BinaryData::KnobOffPostEffects_png,
+      BinaryData::KnobOffPostEffects_pngSize);
+
   // Meters
   meterIn.setMeterSource(&audioProcessor.getMeterInSource());
   addAndMakeVisible(meterIn);
@@ -62,6 +69,8 @@ NamEditor::NamEditor(NamJUCEAudioProcessor &p)
 
   initializeBoostSliders();
 
+  initializeReverbSliders();
+
   initializeSliderAttachments();
 
   // Update TS toggle appearance to match initial state
@@ -72,6 +81,9 @@ NamEditor::NamEditor(NamJUCEAudioProcessor &p)
 
   // Update Boost toggle appearance to match initial state
   updateBoostToggleAppearance();
+
+  // Update Reverb toggle appearance to match initial state
+  updateReverbToggleAppearance();
 
   addAndMakeVisible(&pmc);
   pmc.setColour(juce::Colours::transparentWhite, 0.0f);
@@ -302,6 +314,12 @@ void NamEditor::setKnobVisibility() {
     // Show Boost controls
     sliders[PluginKnobs::BoostVolume]->setVisible(true);
     boostEnabledToggle->setVisible(true);
+
+    // Hide Reverb controls
+    sliders[PluginKnobs::ReverbMix]->setVisible(false);
+    sliders[PluginKnobs::ReverbTone]->setVisible(false);
+    sliders[PluginKnobs::ReverbSize]->setVisible(false);
+    reverbEnabledToggle->setVisible(false);
     break;
 
   case AMP:
@@ -327,6 +345,12 @@ void NamEditor::setKnobVisibility() {
     // Hide Boost controls
     sliders[PluginKnobs::BoostVolume]->setVisible(false);
     boostEnabledToggle->setVisible(false);
+
+    // Hide Reverb controls
+    sliders[PluginKnobs::ReverbMix]->setVisible(false);
+    sliders[PluginKnobs::ReverbTone]->setVisible(false);
+    sliders[PluginKnobs::ReverbSize]->setVisible(false);
+    reverbEnabledToggle->setVisible(false);
     break;
 
   case POST_EFFECTS:
@@ -352,6 +376,12 @@ void NamEditor::setKnobVisibility() {
     // Hide Boost controls
     sliders[PluginKnobs::BoostVolume]->setVisible(false);
     boostEnabledToggle->setVisible(false);
+
+    // Show Reverb controls
+    sliders[PluginKnobs::ReverbMix]->setVisible(true);
+    sliders[PluginKnobs::ReverbTone]->setVisible(true);
+    sliders[PluginKnobs::ReverbSize]->setVisible(true);
+    reverbEnabledToggle->setVisible(true);
     break;
   }
 }
@@ -659,6 +689,60 @@ void NamEditor::initializeBoostSliders() {
   boostEnabledToggle->setBounds(327, 433, 53, 53);
 }
 
+void NamEditor::initializeReverbSliders() {
+  const int knobSize = 52;
+
+  const int xStart = 619;
+  const int xOffsetMultiplier = 66;
+  const int yPosition = 253;
+
+  // Reverb slider IDs
+  const int reverbSliders[] = {PluginKnobs::ReverbMix, PluginKnobs::ReverbSize,
+                               PluginKnobs::ReverbTone};
+
+  for (int i = 0; i < 3; ++i) {
+    auto &slider = sliders[reverbSliders[i]];
+
+    // Basic setup
+    slider.reset(new CustomSlider());
+    addAndMakeVisible(slider.get());
+
+    // Apply post-effects look and feel
+    slider->setLookAndFeel(&lnfPostEffects);
+    slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+
+    // Position in row
+    slider->setBounds(xStart + (i * xOffsetMultiplier), yPosition, knobSize,
+                      knobSize);
+
+    slider->addListener(this);
+  }
+
+  // Reverb Enable toggle
+  reverbEnabledToggle =
+      std::make_unique<juce::ImageButton>("Reverb Enable");
+  addAndMakeVisible(reverbEnabledToggle.get());
+
+  // Set up the button to act as a toggle button
+  reverbEnabledToggle->setClickingTogglesState(true);
+
+  // Use post-effects pedal button images
+  reverbEnabledToggle->setImages(
+      false, true, true, pedalButtonOffPostEffects, 1.0f,
+      juce::Colours::transparentBlack,                              // normal
+      pedalButtonOffPostEffects, 0.8f, juce::Colours::transparentBlack,  // over
+      pedalButtonOffPostEffects, 1.0f, juce::Colours::transparentBlack); // down
+
+  // Add onClick handler to update appearance when toggled
+  reverbEnabledToggle->onClick = [this]() { updateReverbToggleAppearance(); };
+
+  reverbEnabledToggle->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+
+  // Position below knobs (roughly centered between them)
+  reverbEnabledToggle->setBounds(683, 428, 52, 52);
+}
+
 void NamEditor::updateTSToggleAppearance() {
   // Update the button images based on toggle state
   bool isToggled = tsEnabledToggle->getToggleState();
@@ -722,6 +806,27 @@ void NamEditor::updateBoostToggleAppearance() {
   }
 }
 
+void NamEditor::updateReverbToggleAppearance() {
+  // Update the button images based on toggle state
+  bool isToggled = reverbEnabledToggle->getToggleState();
+
+  if (isToggled) {
+    // Show ON image when enabled
+    reverbEnabledToggle->setImages(
+        false, true, true, pedalButtonOnPostEffects, 1.0f,
+        juce::Colours::transparentBlack,                             // normal
+        pedalButtonOnPostEffects, 1.0f, juce::Colours::transparentBlack,  // over
+        pedalButtonOnPostEffects, 1.0f, juce::Colours::transparentBlack); // down
+  } else {
+    // Show OFF image when disabled
+    reverbEnabledToggle->setImages(
+        false, true, true, pedalButtonOffPostEffects, 1.0f,
+        juce::Colours::transparentBlack,                              // normal
+        pedalButtonOffPostEffects, 1.0f, juce::Colours::transparentBlack,  // over
+        pedalButtonOffPostEffects, 1.0f, juce::Colours::transparentBlack); // down
+  }
+}
+
 void NamEditor::initializeSliderAttachments() {
   // Hook slider attachments
   for (int slider = 0; slider < NUM_SLIDERS; ++slider) {
@@ -750,4 +855,9 @@ void NamEditor::initializeSliderAttachments() {
   boostEnabledAttachment =
       std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
           audioProcessor.apvts, "BOOST_ENABLED_ID", *boostEnabledToggle);
+
+  // Attach Reverb Enable toggle button
+  reverbEnabledAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          audioProcessor.apvts, "REVERB_ENABLED_ID", *reverbEnabledToggle);
 }
