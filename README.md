@@ -7,8 +7,8 @@
 
 <div id="badges" align="center">
 
-[![current release](https://img.shields.io/github/release/timpelser/nam-juce.svg)](https://github.com/timpelser/nam-juce/releases)
-[![license](https://img.shields.io/github/license/timpelser/nam-juce.svg)](https://github.com/timpelser/nam-juce/blob/master/LICENSE.txt)
+[![current release](https://img.shields.io/github/release/timpelser/mayerism.svg)](https://github.com/timpelser/mayerism/releases)
+[![license](https://img.shields.io/github/license/timpelser/mayerism.svg)](https://github.com/timpelser/mayerism/blob/master/LICENSE.txt)
 
 </div>
 
