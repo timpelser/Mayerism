@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 
-set(PROJECT_NAME "NEURAL_AMP_MODELER")
-set(PLUGIN_VERSION 0.4.0)
+set(PROJECT_NAME "Mayerism")
+set(PLUGIN_VERSION 0.0.1)
 
 project(${PROJECT_NAME} VERSION ${PLUGIN_VERSION})
 
@@ -9,6 +9,7 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/CMake/helpers.cmake")
 init_submodules()
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE BOOL "")
 set(CMAKE_CXX_STANDARD_REQUIRED OFF)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -26,6 +27,7 @@ endif()
 
 add_definitions(-DNAM_SAMPLE_FLOAT)
 add_definitions(-DDSP_SAMPLE_FLOAT)
+add_definitions(-w)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -182,6 +184,15 @@ else()
 	target_compile_options(${PROJECT_NAME} 
     PRIVATE
 		-Wall 
+		-Wno-delete-non-abstract-non-virtual-dtor
+		-Wno-implicit-float-conversion
+		-Wno-sign-compare
+		-Wno-unused-variable
+		-Wno-zero-as-null-pointer-constant
+		-Wno-unused-private-field
+		-Wno-deprecated-declarations
+		-Wno-extra-semi
+		-Wno-unused-parameter
 		"$<$<CONFIG:DEBUG>:-Og;-ggdb>"
 		"$<$<CONFIG:RELWITHDEBINFO>:-Ofast>"
 		"$<$<CONFIG:RELEASE>:-Ofast>"

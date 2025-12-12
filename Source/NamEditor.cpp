@@ -689,7 +689,7 @@ void NamEditor::initializeKlonSliders() {
   auto &levelSlider = sliders[PluginKnobs::KlonLevel];
   levelSlider.reset(new CustomSlider());
   addAndMakeVisible(levelSlider.get());
-  ` levelSlider->setLookAndFeel(&lnfPreEffects);
+  levelSlider->setLookAndFeel(&lnfPreEffects);
   levelSlider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
   levelSlider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
   levelSlider->addListener(this);

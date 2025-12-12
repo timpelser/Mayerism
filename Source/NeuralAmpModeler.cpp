@@ -196,7 +196,7 @@ void NeuralAmpModeler::updateParameters() {
 void NeuralAmpModeler::createParameters(
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> &parameters) {
   parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "INPUT_ID", "INPUT", -20.0f, 20.0f, 0.0f));
+      "INPUT_ID", "INPUT", -5.0f, 5.0f, 0.0f));
   parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
       "NGATE_ID", "NGATE", -101.0f, 0.0f, -80.0f));
   parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -206,7 +206,7 @@ void NeuralAmpModeler::createParameters(
   parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
       "TREBLE_ID", "TREBLE", 0.0f, 10.0f, 5.0f));
   parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "OUTPUT_ID", "OUTPUT", -40.0f, 40.0f, 0.0f));
+      "OUTPUT_ID", "OUTPUT", -5.0f, 5.0f, 0.0f));
 
   DBG("NAM Parameters Created!");
 }

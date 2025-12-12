@@ -29,6 +29,9 @@ TopBarComponent::TopBarComponent(NamJUCEAudioProcessor &p)
   settingsDropdown->addItem(TRANS("Info"), 2);
   settingsDropdown->addListener(this);
   settingsDropdown->setLookAndFeel(&lnf);
+
+  // Currently no use for settings button, remove in the future if needed.
+  settingsButton->setVisible(false);
 }
 
 TopBarComponent::~TopBarComponent() {}

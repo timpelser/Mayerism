@@ -298,9 +298,21 @@ void NamJUCEAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     reverbProcessor.process(buffer);
   }
 
-  // Apply independent output gain AFTER all post-effects, BEFORE output
-  // metering
+  // Apply independent output gain AFTER all post-effects
   buffer.applyGain(std::powf(10.0f, pluginOutputGain->load() / 20.0f));
+
+  // --- SAFETY OUTPUT CLIPPER ---
+  // Soft clip the final output to prevent harsh digital clipping.
+  // Limiting slightly below 0dBfs (-0.1dB = ~0.988)
+  const float clipThreshold = 0.988f;
+
+  for (int channel = 0; channel < buffer.getNumChannels(); ++channel) {
+    auto *data = buffer.getWritePointer(channel);
+    for (int i = 0; i < buffer.getNumSamples(); ++i) {
+      // std::tanh creates a smooth "analog-like" curve as it approaches limit
+      data[i] = clipThreshold * std::tanh(data[i] / clipThreshold);
+    }
+  }
 
   meterOutSource.measureBlock(buffer);
 }

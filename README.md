@@ -43,7 +43,7 @@
 
 ### TODO
 
-- Limit range of NAM input and output to avoid digital clipping
+<!-- - Limit range of NAM input and output to avoid digital clipping -->
 - Build Windows and Mac vst installer
 - Fix standalone audio settings to support mono input
 - make dark grey meter take up entire background space
