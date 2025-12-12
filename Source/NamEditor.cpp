@@ -1,454 +1,1182 @@
 #include "NamEditor.h"
 
-NamEditor::NamEditor(NamJUCEAudioProcessor& p)
-    : AudioProcessorEditor(&p), audioProcessor(p), eqEditor(p), topBar(p, [&]() { updateAfterPresetLoad(); })
-{
-    assetManager.reset(new AssetManager());
+NamEditor::NamEditor(NamJUCEAudioProcessor &p)
+    : AudioProcessorEditor(&p), audioProcessor(p), topBar(p),
+      pmc(p.getPresetManager(), [&]() { updateAfterPresetLoad(); }) {
 
-    // Meters
-    meterIn.setMeterSource(&audioProcessor.getMeterInSource());
-    addAndMakeVisible(meterIn);
+  // Load page background images
+  backgroundPreEffects = juce::ImageFileFormat::loadFrom(
+      BinaryData::backgroundpre_png, BinaryData::backgroundpre_pngSize);
+  backgroundPreEffectsNoKnobs = juce::ImageFileFormat::loadFrom(
+      BinaryData::background_pre_no_knobs_png,
+      BinaryData::background_pre_no_knobs_pngSize);
+  backgroundAmp = juce::ImageFileFormat::loadFrom(
+      BinaryData::backgroundamp_png, BinaryData::backgroundamp_pngSize);
+  backgroundPostEffects = juce::ImageFileFormat::loadFrom(
+      BinaryData::backgroundpost_png, BinaryData::backgroundpost_pngSize);
 
-    meterOut.setMeterSource(&audioProcessor.getMeterOutSource());
-    addAndMakeVisible(meterOut);
+  // Load pedal button images for TS toggle
+  pedalButtonOn = juce::ImageFileFormat::loadFrom(
+      BinaryData::PedalButtonOn_png, BinaryData::PedalButtonOn_pngSize);
+  pedalButtonOff = juce::ImageFileFormat::loadFrom(
+      BinaryData::PedalButtonOff_png, BinaryData::PedalButtonOff_pngSize);
 
-    meterIn.setAlpha(0.8);
-    meterOut.setAlpha(0.8);
+  // Load pedal button images for post-effects pedals
+  pedalButtonOnPostEffects = juce::ImageFileFormat::loadFrom(
+      BinaryData::KnobOnPostEffects_png, BinaryData::KnobOnPostEffects_pngSize);
+  pedalButtonOffPostEffects =
+      juce::ImageFileFormat::loadFrom(BinaryData::KnobOffPostEffects_png,
+                                      BinaryData::KnobOffPostEffects_pngSize);
 
-    meterIn.setSelectedChannel(0);
-    meterOut.setSelectedChannel(0);
+  // Meters
+  meterIn.setMeterSource(&audioProcessor.getMeterInSource());
+  addAndMakeVisible(meterIn);
 
-    int knobSize = 98;
-    int xStart = 75;
-    int xOffsetMultiplier = 140;
+  meterOut.setMeterSource(&audioProcessor.getMeterOutSource());
+  addAndMakeVisible(meterOut);
 
-    lnf.setColour(Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
-    lnf.setColour(Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
-    lnf.setColour(Slider::textBoxTextColourId, juce::Colours::ivory);
+  meterIn.setAlpha(0.8);
+  meterOut.setAlpha(0.8);
 
-    // Setup sliders
-    for (int slider = 0; slider < NUM_SLIDERS; ++slider)
-    {
-        sliders[slider].reset(new CustomSlider());
-        addAndMakeVisible(sliders[slider].get());
-        sliders[slider]->setLookAndFeel(&lnf);
-        sliders[slider]->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-        sliders[slider]->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
-        // sliders[slider]->setPopupDisplayEnabled(true, true, getTopLevelComponent());
+  meterIn.setSelectedChannel(0);
+  meterOut.setSelectedChannel(0);
 
-        int size2 = 20;
+  meterIn.toFront(true);
+  meterOut.toFront(true);
 
-        if (slider >= PluginKnobs::LowCut)
-        {
-            xStart = sliders[PluginKnobs::Middle]->getX();
-            sliders[slider]->setBounds(xStart + ((slider - 6) * xOffsetMultiplier) - 10, 435, knobSize + size2, knobSize + size2 + 15);
-            sliders[slider]->setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
-        }
-        else
-            sliders[slider]->setBounds(xStart + (slider * xOffsetMultiplier), 204, knobSize, knobSize);
-    }
+  // Initialize meter positions and styling
+  setMeterPosition();
 
-    sliders[PluginKnobs::LowCut]->setCustomSlider(CustomSlider::SliderTypes::Filters);
-    sliders[PluginKnobs::HighCut]->setCustomSlider(CustomSlider::SliderTypes::Filters);
-    sliders[PluginKnobs::Doubler]->setPopupDisplayEnabled(true, true, getTopLevelComponent());
-    sliders[PluginKnobs::Doubler]->setCustomSlider(CustomSlider::SliderTypes::Doubler);
-    sliders[PluginKnobs::Doubler]->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
-    sliders[PluginKnobs::Doubler]->setBounds(sliders[PluginKnobs::Output]->getX(), 435, knobSize, knobSize);
-    sliders[PluginKnobs::NoiseGate]->setPopupDisplayEnabled(true, true, getTopLevelComponent());
-    sliders[PluginKnobs::NoiseGate]->setCustomSlider(CustomSlider::SliderTypes::Gate);
-    sliders[PluginKnobs::NoiseGate]->setPopupDisplayEnabled(true, true, getTopLevelComponent());
-    sliders[PluginKnobs::NoiseGate]->addListener(this);
+  lnf.setColour(Slider::textBoxOutlineColourId,
+                juce::Colours::transparentBlack);
+  lnf.setColour(Slider::textBoxBackgroundColourId,
+                juce::Colours::transparentBlack);
+  lnf.setColour(Slider::textBoxTextColourId, juce::Colours::ivory);
 
-    // Tone Stack Toggle
-    toneStackToggle.reset(new juce::ToggleButton("ToneStackToggleButton"));
-    addAndMakeVisible(toneStackToggle.get());
-    toneStackToggle->setBounds(sliders[PluginKnobs::Bass]->getX() + 30, sliders[PluginKnobs::Bass]->getY() + knobSize + 50, 90, 40);
-    toneStackToggle->setButtonText("Tone Stack");
-    toneStackToggle->onClick = [this] { setToneStackEnabled(bool(*audioProcessor.apvts.getRawParameterValue("TONE_STACK_ON_ID"))); };
-    toneStackToggle->setVisible(false);
+  lnfMinimal.setColour(Slider::textBoxOutlineColourId,
+                       juce::Colours::transparentBlack);
+  lnfMinimal.setColour(Slider::textBoxBackgroundColourId,
+                       juce::Colours::transparentBlack);
+  lnfMinimal.setColour(Slider::textBoxTextColourId, juce::Colours::ivory);
 
-    // Rerunning this for GUI Recustrunction upon reopning the plugin
-    setToneStackEnabled(bool(*audioProcessor.apvts.getRawParameterValue("TONE_STACK_ON_ID")));
+  initializeTopRow();
 
-    // Normalize Toggle
-    normalizeToggle.reset(new juce::ToggleButton("NormalizeToggleButton"));
-    addAndMakeVisible(normalizeToggle.get());
-    normalizeToggle->setBounds(toneStackToggle->getX() + 120, toneStackToggle->getY(), 90, 40);
-    normalizeToggle->setButtonText("Normalize");
-    normalizeToggle->setVisible(false);
+  initializeAmpSliders();
 
-    // IR Toggle
-    irToggle.reset(new juce::ToggleButton("IRToggleButton"));
-    addAndMakeVisible(irToggle.get());
-    irToggle->setBounds(normalizeToggle->getX() + 120, normalizeToggle->getY(), 90, 40);
-    irToggle->setButtonText("IR");
-    irToggle->setVisible(false);
+  initializeTSSliders();
 
-    // Model Name Box and Button
-    initializeTextBox("ModelNameBox", modelNameBox, 90, sliders[PluginKnobs::Input]->getY() + 195 + screensOffset, 200, 28);
-    initializeButton(
-        "LoadModelButton", "Load", loadModelButton, modelNameBox->getX() + modelNameBox->getWidth() + 15, modelNameBox->getY() - 3, 48, 39);
-    assetManager->setLoadButton(loadModelButton);
-    loadModelButton->onClick = [this] { loadModelButtonClicked(); };
+  initializeKlonSliders();
 
-    // IR Name Box and Button
-    initializeTextBox("IRNameBox", irNameBox, 90, modelNameBox->getY() + 80, 200, 28);
-    initializeButton("LoadIRButton", "Load", loadIRButton, irNameBox->getX() + irNameBox->getWidth() + 15, irNameBox->getY() - 3, 48, 39);
-    loadIRButton->onClick = [this] { loadIrButtonClicked(); };
-    assetManager->setLoadButton(loadIRButton);
+  initializeCompSliders();
 
-    initializeButton(
-        "ClearModelBtn", "X", clearModelButton, loadModelButton->getX() + loadModelButton->getWidth() + 10, loadModelButton->getY(), 48, 39);
-    clearModelButton->setVisible(audioProcessor.getNamModelStatus());
-    assetManager->setClearButton(clearModelButton);
-    clearModelButton->onClick = [this]
-    {
-        audioProcessor.clearNAM();
-        clearModelButton->setVisible(audioProcessor.getNamModelStatus());
-        modelNameBox->setText("");
-        modelNameBox->clear();
-    };
+  initializeBoostSliders();
 
-    initializeButton("ClearIRbtn", "X", clearIrButton, loadIRButton->getX() + loadIRButton->getWidth() + 10, loadIRButton->getY(), 48, 39);
-    clearIrButton->setVisible(audioProcessor.getIrStatus());
-    assetManager->setClearButton(clearIrButton);
-    clearIrButton->onClick = [this]
-    {
-        audioProcessor.clearIR();
-        clearIrButton->setVisible(audioProcessor.getIrStatus());
-        irNameBox->setText("");
-        irNameBox->clear();
-    };
+  initializeChorusSliders();
 
-    // Hook slider and button attacments
-    for (int slider = 0; slider < NUM_SLIDERS; ++slider)
-        sliderAttachments[slider] =
-            std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, sliderIDs[slider], *sliders[slider]);
+  initializeReverbSliders();
 
-    sliderAttachments[PluginKnobs::LowCut] =
-        std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "LOWCUT_ID", *sliders[PluginKnobs::LowCut]);
-    sliderAttachments[PluginKnobs::HighCut] =
-        std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "HIGHCUT_ID", *sliders[PluginKnobs::HighCut]);
-    sliderAttachments[PluginKnobs::Doubler] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.apvts, "DOUBLER_SPREAD_ID", *sliders[PluginKnobs::Doubler]);
+  initializeDelaySliders();
 
-    toneStackToggleAttachment.reset(
-        new juce::AudioProcessorValueTreeState::ButtonAttachment(audioProcessor.apvts, "TONE_STACK_ON_ID", *toneStackToggle));
-    normalizeToggleAttachment.reset(new juce::AudioProcessorValueTreeState::ButtonAttachment(audioProcessor.apvts, "NORMALIZE_ID", *normalizeToggle));
-    irToggleAttachment.reset(new juce::AudioProcessorValueTreeState::ButtonAttachment(audioProcessor.apvts, "CAB_ON_ID", *irToggle));
+  initializeSliderAttachments();
 
-    // Check the processor for Model and IR status upon reopening the UI
-    if (audioProcessor.getLastModelPath() != "null")
-    {
-        audioProcessor.getLastModelName() == "Model File Missing!" ? modelNameBox->setColour(juce::TextEditor::textColourId, juce::Colours::red)
-                                                                   : modelNameBox->setColour(juce::TextEditor::textColourId, juce::Colours::snow);
-        modelNameBox->setText(audioProcessor.getLastModelName());
-        modelNameBox->setCaretPosition(0);
-    }
+  // Update TS toggle appearance to match initial state
+  updateTSToggleAppearance();
 
-    if (audioProcessor.getLastIrPath() != "null")
-    {
-        audioProcessor.getLastIrName() == "IR File Missing!" ? irNameBox->setColour(juce::TextEditor::textColourId, juce::Colours::red)
-                                                             : irNameBox->setColour(juce::TextEditor::textColourId, juce::Colours::snow);
-        irNameBox->setText(audioProcessor.getLastIrName());
-        irNameBox->setCaretPosition(0);
-    }
+  // Update Compressor toggle appearance to match initial state
+  updateCompToggleAppearance();
 
-    assetManager->initializeButton(toneStackButton, AssetManager::Buttons::TONESTACK_BUTTON);
-    addAndMakeVisible(toneStackButton.get());
-    toneStackButton->setBounds(sliders[PluginKnobs::Middle]->getX() + (sliders[PluginKnobs::Middle]->getWidth() / 2) - 45,
-                               sliders[PluginKnobs::Middle]->getY() + sliders[PluginKnobs::Middle]->getHeight() + 15, 90, 40);
-    toneStackButton->setLedState(*audioProcessor.apvts.getRawParameterValue("TONE_STACK_ON_ID"));
-    toneStackButton->onClick = [this]
-    {
-        toneStackToggle->setToggleState(!toneStackToggle->getToggleState(), true);
-        toneStackButton->setLedState(*audioProcessor.apvts.getRawParameterValue("TONE_STACK_ON_ID"));
-    };
+  // Update Boost toggle appearance to match initial state
+  updateBoostToggleAppearance();
 
-    assetManager->initializeButton(normalizeButton, AssetManager::Buttons::NORMALIZE_BUTTON);
-    addAndMakeVisible(normalizeButton.get());
-    normalizeButton->setBounds(sliders[PluginKnobs::Treble]->getX() + (sliders[PluginKnobs::Treble]->getWidth() / 2) - 45,
-                               sliders[PluginKnobs::Treble]->getY() + sliders[PluginKnobs::Treble]->getHeight() + 15, 90, 40);
-    normalizeButton->setLedState(*audioProcessor.apvts.getRawParameterValue("NORMALIZE_ID"));
-    normalizeButton->onClick = [this]
-    {
-        normalizeToggle->setToggleState(!normalizeToggle->getToggleState(), true);
-        normalizeButton->setLedState(*audioProcessor.apvts.getRawParameterValue("NORMALIZE_ID"));
-    };
+  // Update Chorus toggle appearance to match initial state
+  updateChorusToggleAppearance();
 
-    assetManager->initializeButton(irButton, AssetManager::Buttons::IR_BUTTON);
-    addAndMakeVisible(irButton.get());
-    irButton->setBounds(sliders[PluginKnobs::Output]->getX() + (sliders[PluginKnobs::Output]->getWidth() / 2) - 45,
-                        sliders[PluginKnobs::Output]->getY() + sliders[PluginKnobs::Output]->getHeight() + 15, 90, 40);
-    irButton->setLedState(*audioProcessor.apvts.getRawParameterValue("CAB_ON_ID"));
-    irButton->onClick = [this]
-    {
-        irToggle->setToggleState(!irToggle->getToggleState(), true);
-        irButton->setLedState(*audioProcessor.apvts.getRawParameterValue("CAB_ON_ID"));
-    };
+  // Update Reverb toggle appearance to match initial state
+  updateReverbToggleAppearance();
 
-    assetManager->initializeButton(eqButton, AssetManager::Buttons::EQ_BUTTON);
-    addAndMakeVisible(eqButton.get());
-    eqButton->setBounds(sliders[PluginKnobs::NoiseGate]->getX() + (sliders[PluginKnobs::NoiseGate]->getWidth() / 2) - 45,
-                        sliders[PluginKnobs::NoiseGate]->getY() + sliders[PluginKnobs::NoiseGate]->getHeight() + 15, 90, 40);
-    eqButton->setLedState(*audioProcessor.apvts.getRawParameterValue("EQ_BYPASS_STATE_ID"));
-    eqButton->setAlwaysOnTop(true);
-    eqButton->toFront(false);
+  // Update Delay toggle appearance to match initial state
+  updateDelayToggleAppearance();
 
-    addAndMakeVisible(&eqEditor);
-    eqEditor.setVisible(false);
+  // Update Klon toggle appearance to match initial state
+  updateKlonToggleAppearance();
 
+  addAndMakeVisible(&pmc);
+  pmc.setColour(juce::Colours::transparentWhite, 0.0f);
 
-    eqButton->onClick = [this]
-    {
-        auto modifiers = juce::ModifierKeys::getCurrentModifiers();
-        if (modifiers.isShiftDown() && !audioProcessor.eqModuleVisible)
-        {
-            eqEditor.toggleEq();
-            eqButton->setLedState(*audioProcessor.apvts.getRawParameterValue("EQ_BYPASS_STATE_ID"));
-        }
-        else
-        {
-            audioProcessor.eqModuleVisible = !audioProcessor.eqModuleVisible;
-            eqEditor.setVisible(audioProcessor.eqModuleVisible);
+  addAndMakeVisible(&topBar);
 
-            if (audioProcessor.eqModuleVisible)
-            {
-                eqButton->setLabelVisible(false);
-                eqButton->setBounds(getWidth() - 43, 25, 20, 20);
-                eqButton->setImages(false, true, false, xIcon, 0.7f, juce::Colours::transparentWhite, xIcon, 1.0f, juce::Colours::transparentWhite,
-                                    xIcon, 0.65f, juce::Colours::transparentWhite, 0);
-            }
-            else
-            {
-                eqButton->setLabelVisible(true);
-                eqButton->reloadImages();
-                eqButton->setBounds(sliders[PluginKnobs::NoiseGate]->getX() + (sliders[PluginKnobs::NoiseGate]->getWidth() / 2) - 45,
-                                    sliders[PluginKnobs::NoiseGate]->getY() + sliders[PluginKnobs::NoiseGate]->getHeight() + 15, 90, 40);
-                eqButton->setLedState(*audioProcessor.apvts.getRawParameterValue("EQ_BYPASS_STATE_ID"));
-            }
-
-            setMeterPosition(!audioProcessor.eqModuleVisible);
-        }
-    };
-
-    eqButton->toFront(true);
-    meterIn.toFront(true);
-    meterOut.toFront(true);
-
-    addAndMakeVisible(&topBar);
-
-    startTimer(30);
+  setupPageTabs();
+  setKnobVisibility(); // Set initial visibility based on default page
 }
 
-NamEditor::~NamEditor()
-{
-    for (int sliderAtt = 0; sliderAtt < NUM_SLIDERS; ++sliderAtt)
-        sliderAttachments[sliderAtt] = nullptr;
-
-    toneStackToggleAttachment = nullptr;
-    normalizeToggleAttachment = nullptr;
-    irToggleAttachment = nullptr;
+NamEditor::~NamEditor() {
+  for (int sliderAtt = 0; sliderAtt < NUM_SLIDERS; ++sliderAtt)
+    sliderAttachments[sliderAtt] = nullptr;
 }
 
-void NamEditor::paint(juce::Graphics& g)
-{
-    g.fillAll(juce::Colour::fromString("FF121212"));
+void NamEditor::paint(juce::Graphics &g) {
+  g.fillAll(juce::Colour::fromString("FF121212"));
 
-    g.setColour(juce::Colours::white);
-    g.setFont(15.0f);
+  g.setColour(juce::Colours::white);
+  g.setFont(15.0f);
 
-    g.drawImageAt(assetManager->getBackground(), 0, 0);
-    g.drawImageAt(assetManager->getScreens(), 0, 0);
-
-    //// TODO: Move this into a dedicated component with its own timer
-    g.drawImageAt(led_to_draw, 296, 168);
-}
-
-void NamEditor::resized()
-{
-    eqEditor.setBounds(getLocalBounds());
-
-    setMeterPosition(!audioProcessor.eqModuleVisible); // Need to change this when more modules are added...
-
-    topBar.setBounds(0, 0, getWidth(), 40);
-}
-
-void NamEditor::timerCallback()
-{
-    //// TODO: Move this into a dedicated component with its own timer
-
-    if (audioProcessor.getTriggerStatus() && static_cast<float>(*audioProcessor.apvts.getRawParameterValue("NGATE_ID")) > -101.0)
-        led_to_draw = led_on;
+  // Draw the background for the current page
+  switch (currentPage) {
+  case PRE_EFFECTS:
+    // Use debug background (no knobs) if flag is set, otherwise use normal
+    if (useDebugPreBackground)
+      g.drawImageAt(backgroundPreEffectsNoKnobs, 0, 0);
     else
-        led_to_draw = led_off;
-    repaint();
+      g.drawImageAt(backgroundPreEffects, 0, 0);
+    break;
+  case AMP:
+    g.drawImageAt(backgroundAmp, 0, 0);
+    break;
+  case POST_EFFECTS:
+    g.drawImageAt(backgroundPostEffects, 0, 0);
+    break;
+  }
 }
 
-void NamEditor::sliderValueChanged(juce::Slider* slider) {}
+void NamEditor::resized() {
+  topBar.setBounds(0, 0, getWidth(), 40);
 
-void NamEditor::setToneStackEnabled(bool toneStackEnabled)
-{
-    for (int slider = PluginKnobs::Bass; slider <= PluginKnobs::Treble; ++slider)
-    {
-        sliders[slider]->setEnabled(toneStackEnabled);
-        toneStackEnabled ? sliders[slider]->setAlpha(1.0f) : sliders[slider]->setAlpha(0.3f);
-    }
+  // Preset Manager - centered between GATE and DOUBLER knobs
+  // GATE ends at x=272, DOUBLER starts at x=674, centered at x=343
+  pmc.setBounds(343, 82, 260, 65);
 }
 
-void NamEditor::loadModelButtonClicked()
-{
-    auto searchLocation = audioProcessor.getLastModelSearchDirectory() == "null" ? juce::File::getSpecialLocation(juce::File::userDesktopDirectory)
-                                                                                 : juce::File(audioProcessor.getLastModelSearchDirectory());
+void NamEditor::timerCallback() {}
 
-    juce::FileChooser chooser("Choose an model to load", searchLocation, "*.nam", true, false);
-
-    if (chooser.browseForFileToOpen())
-    {
-        juce::File model;
-        model = chooser.getResult();
-        audioProcessor.loadNamModel(model);
-        modelNameBox->setColour(juce::TextEditor::textColourId, juce::Colours::snow);
-        modelNameBox->setText(model.getFileNameWithoutExtension());
-        modelNameBox->setCaretPosition(0);
-    }
-
-    clearModelButton->setVisible(audioProcessor.getNamModelStatus());
+void NamEditor::sliderValueChanged(juce::Slider *slider) {
+  // Update value labels whenever any slider changes
+  updateKnobValueLabels();
 }
 
-void NamEditor::loadIrButtonClicked()
-{
-    auto searchLocation = audioProcessor.getLastIrSearchDirectory() == "null" ? juce::File::getSpecialLocation(juce::File::userDesktopDirectory)
-                                                                              : juce::File(audioProcessor.getLastIrSearchDirectory());
+void NamEditor::setMeterPosition() {
+  // Meter bar color (the moving part) - 717171
+  meterlnf.setColour(foleys::LevelMeter::lmMeterGradientLowColour,
+                     juce::Colour::fromString("FF717171"));
+  // Set high gradient to same color to avoid gradient effect
+  meterlnf.setColour(foleys::LevelMeter::lmMeterGradientMidColour,
+                     juce::Colour::fromString("FF717171"));
+  // Outline - transparent for clean look
+  meterlnf.setColour(foleys::LevelMeter::lmMeterOutlineColour,
+                     juce::Colours::transparentWhite);
+  // Background color - D7D7D7
+  meterlnf.setColour(foleys::LevelMeter::lmMeterBackgroundColour,
+                     juce::Colour::fromString("FFD7D7D7"));
+  meterIn.setLookAndFeel(&meterlnf);
+  meterOut.setLookAndFeel(&meterlnf);
 
-    juce::FileChooser chooser("Choose an IR to load", searchLocation, "*.wav", true, false);
-
-    if (chooser.browseForFileToOpen())
-    {
-        juce::File impulseResponse;
-        impulseResponse = chooser.getResult();
-        audioProcessor.loadImpulseResponse(impulseResponse);
-        irNameBox->setColour(juce::TextEditor::textColourId, juce::Colours::snow);
-        irNameBox->setText(impulseResponse.getFileNameWithoutExtension());
-        irNameBox->setCaretPosition(0);
-    }
-
-    clearIrButton->setVisible(audioProcessor.getIrStatus());
+  int meterHeight = 115;
+  int meterWidth = 14;
+  meterIn.setBounds(juce::Rectangle<int>(48, 68, meterWidth, meterHeight));
+  meterOut.setBounds(juce::Rectangle<int>(891, 68, meterWidth, meterHeight));
 }
 
-void NamEditor::initializeTextBox(const juce::String label, std::unique_ptr<juce::TextEditor>& textBox, int x, int y, int width, int height)
-{
-    textBox.reset(new juce::TextEditor(label));
-    addAndMakeVisible(textBox.get());
-    textBox->setMultiLine(false);
-    textBox->setReturnKeyStartsNewLine(false);
-    textBox->setReadOnly(true);
-    textBox->setScrollbarsShown(true);
-    textBox->setCaretVisible(true);
-    textBox->setPopupMenuEnabled(true);
-    textBox->setAlpha(0.9f);
-    textBox->setColour(juce::TextEditor::backgroundColourId, juce::Colours::transparentBlack);
-    textBox->setColour(juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
-    juce::Font textBoxFont;
-    textBoxFont.setHeight(18.0f);
-    // textBoxFont.setBold(true);
-    textBox->setFont(textBoxFont);
-    textBox->setAlpha(0.8f);
-    textBox->setBounds(x, y, width, height);
+void NamEditor::updateAfterPresetLoad() {}
+
+void NamEditor::drawKnobLabels() {
+  // Define label texts and corresponding knob indices
+  struct LabelConfig {
+    int arrayIndex;    // Index in the knobLabels array
+    int knobIndex;     // Index of the slider (PluginKnobs enum)
+    juce::String text; // Label text
+  };
+
+  const LabelConfig labelConfigs[] = {{0, PluginKnobs::PluginInput, "INPUT"},
+                                      {1, PluginKnobs::NoiseGate, "GATE"},
+                                      {2, PluginKnobs::Doubler, "DOUBLER"},
+                                      {3, PluginKnobs::PluginOutput, "OUTPUT"}};
+
+  for (const auto &config : labelConfigs) {
+    // Get the knob bounds to position label above it
+    auto knobBounds = sliders[config.knobIndex]->getBounds();
+
+    // Make the label visible
+    addAndMakeVisible(knobLabels[config.arrayIndex]);
+
+    // Set the text
+    knobLabels[config.arrayIndex].setText(config.text,
+                                          juce::dontSendNotification);
+
+    // Set text color to ivory (matching slider text)
+    knobLabels[config.arrayIndex].setColour(juce::Label::textColourId,
+                                            juce::Colours::black);
+
+    // Set transparent background
+    knobLabels[config.arrayIndex].setColour(juce::Label::backgroundColourId,
+                                            juce::Colours::transparentBlack);
+
+    // Set font - 12pt, bold
+    knobLabels[config.arrayIndex].setFont(juce::Font(14.0f, juce::Font::plain));
+
+    // Center the text
+    knobLabels[config.arrayIndex].setJustificationType(
+        juce::Justification::centred);
+
+    // Position the label above the knob
+    // Label is centered on the knob with a fixed width to prevent text
+    // squashing
+    int labelWidth = 80; // Wide enough for "DOUBLER"
+    int labelHeight = 20;
+    int labelX = knobBounds.getCentreX() - (labelWidth / 2); // Center on knob
+    int labelY = knobBounds.getY() - labelHeight - 5;
+    knobLabels[config.arrayIndex].setBounds(labelX, labelY, labelWidth,
+                                            labelHeight);
+  }
 }
 
-void NamEditor::initializeButton(const juce::String label, const juce::String buttonText, std::unique_ptr<juce::ImageButton>& button, int x, int y,
-                                 int width, int height)
-{
-    button.reset(new juce::ImageButton(label));
-    addAndMakeVisible(button.get());
-    button->setBounds(x, y, width, height);
+void NamEditor::drawKnobValueLabels() {
+  // Define label configuration for value labels
+  struct LabelConfig {
+    int arrayIndex; // Index in the knobValueLabels array
+    int knobIndex;  // Index of the slider (PluginKnobs enum)
+  };
+
+  const LabelConfig labelConfigs[] = {{0, PluginKnobs::PluginInput},
+                                      {1, PluginKnobs::NoiseGate},
+                                      {2, PluginKnobs::Doubler},
+                                      {3, PluginKnobs::PluginOutput}};
+
+  for (const auto &config : labelConfigs) {
+    // Get the knob bounds to position value label below it
+    auto knobBounds = sliders[config.knobIndex]->getBounds();
+
+    // Make the label visible
+    addAndMakeVisible(knobValueLabels[config.arrayIndex]);
+
+    // Set initial placeholder text
+    knobValueLabels[config.arrayIndex].setText("--",
+                                               juce::dontSendNotification);
+
+    // Set text color to black (matching name labels)
+    knobValueLabels[config.arrayIndex].setColour(juce::Label::textColourId,
+                                                 juce::Colours::black);
+
+    // Set transparent background
+    knobValueLabels[config.arrayIndex].setColour(
+        juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+
+    // Set font - 14pt, plain (matching name labels)
+    knobValueLabels[config.arrayIndex].setFont(
+        juce::Font(14.0f, juce::Font::plain));
+
+    // Center the text
+    knobValueLabels[config.arrayIndex].setJustificationType(
+        juce::Justification::centred);
+
+    // Position the label below the knob
+    // Label is centered on the knob with a fixed width
+    int labelWidth = 80; // Wide enough for values with units
+    int labelHeight = 20;
+    int labelX = knobBounds.getCentreX() - (labelWidth / 2); // Center on knob
+    int labelY = knobBounds.getBottom() + 5; // 5 pixels below knob
+    knobValueLabels[config.arrayIndex].setBounds(labelX, labelY, labelWidth,
+                                                 labelHeight);
+  }
 }
 
-void NamEditor::setMeterPosition(bool isOnMainScreen)
-{
-    if (isOnMainScreen)
-    {
-        meterlnf.setColour(foleys::LevelMeter::lmMeterGradientLowColour, juce::Colours::ivory);
-        meterlnf.setColour(foleys::LevelMeter::lmMeterOutlineColour, juce::Colours::transparentWhite);
-        meterlnf.setColour(foleys::LevelMeter::lmMeterBackgroundColour, juce::Colours::transparentWhite);
-        meterIn.setLookAndFeel(&meterlnf);
-        meterOut.setLookAndFeel(&meterlnf);
+void NamEditor::updateKnobValueLabels() {
+  // Define the mapping between label array positions and knob indices
+  const int knobIndices[] = {PluginKnobs::PluginInput, PluginKnobs::NoiseGate,
+                             PluginKnobs::Doubler, PluginKnobs::PluginOutput};
 
-        int meterHeight = 172;
-        int meterWidth = 18;
-        meterIn.setBounds(juce::Rectangle<int>(26, 174, meterWidth, meterHeight));
-        meterOut.setBounds(juce::Rectangle<int>(getWidth() - meterWidth - 21, 174, meterWidth, meterHeight));
-    }
-    else
-    {
-        meterlnf2.setColour(foleys::LevelMeter::lmMeterGradientLowColour, juce::Colours::ivory);
-        meterIn.setLookAndFeel(&meterlnf2);
-        meterOut.setLookAndFeel(&meterlnf2);
+  // Update each value label with the current formatted slider value
+  for (int i = 0; i < 4; ++i) {
+    // Get the current value from the slider
+    double currentValue = sliders[knobIndices[i]]->getValue();
 
-        int meterHeight = 255;
-        int meterWidth = 20;
-        meterIn.setBounds(20, (getHeight() / 2) - (meterHeight / 2) + 10, meterWidth, meterHeight);
-        meterOut.setBounds(getWidth() - 30, (getHeight() / 2) - (meterHeight / 2) + 10, meterWidth, meterHeight);
-    }
+    // Use the slider's getTextFromValue() method to format the value
+    // This reuses the same formatting logic as the popup displays
+    juce::String formattedValue =
+        sliders[knobIndices[i]]->getTextFromValue(currentValue);
+
+    // Update the label text
+    knobValueLabels[i].setText(formattedValue, juce::dontSendNotification);
+  }
 }
 
-void NamEditor::updateAfterPresetLoad()
-{
+void NamEditor::updatePageTabHighlight() {
+  preEffectsPage->setAlpha(currentPage == PRE_EFFECTS ? 1.0f : 0.5f);
+  ampPage->setAlpha(currentPage == AMP ? 1.0f : 0.5f);
+  postEffectsPage->setAlpha(currentPage == POST_EFFECTS ? 1.0f : 0.5f);
+}
 
-    if (audioProcessor.eqModuleVisible)
-    {
-        eqButton->setLabelVisible(false);
-        eqButton->setImages(false, true, false, xIcon, 0.7f, juce::Colours::transparentWhite, xIcon, 1.0f, juce::Colours::transparentWhite, xIcon,
-                            0.65f, juce::Colours::transparentWhite, 0);
+void NamEditor::setKnobVisibility() {
+  switch (currentPage) {
+  case PRE_EFFECTS:
+    // Hide amp controls on pre-effects page
+    sliders[PluginKnobs::Input]->setVisible(false);
+    sliders[PluginKnobs::Bass]->setVisible(false);
+    sliders[PluginKnobs::Middle]->setVisible(false);
+    sliders[PluginKnobs::Treble]->setVisible(false);
+    sliders[PluginKnobs::Output]->setVisible(false);
+
+    // Show Tube Screamer controls
+    sliders[PluginKnobs::TSDrive]->setVisible(true);
+    sliders[PluginKnobs::TSTone]->setVisible(true);
+    sliders[PluginKnobs::TSLevel]->setVisible(true);
+    tsEnabledToggle->setVisible(true);
+
+    // Show Klon controls
+    sliders[PluginKnobs::KlonGain]->setVisible(true);
+    sliders[PluginKnobs::KlonTreble]->setVisible(true);
+    sliders[PluginKnobs::KlonLevel]->setVisible(true);
+    klonEnabledToggle->setVisible(true);
+
+    // Show Compressor controls
+    sliders[PluginKnobs::CompVolume]->setVisible(true);
+    sliders[PluginKnobs::CompAttack]->setVisible(true);
+    sliders[PluginKnobs::CompSustain]->setVisible(true);
+    compEnabledToggle->setVisible(true);
+
+    // Show Boost controls
+    sliders[PluginKnobs::BoostVolume]->setVisible(true);
+    boostEnabledToggle->setVisible(true);
+
+    // Hide Chorus controls
+    sliders[PluginKnobs::ChorusRate]->setVisible(false);
+    sliders[PluginKnobs::ChorusDepth]->setVisible(false);
+    sliders[PluginKnobs::ChorusMix]->setVisible(false);
+    chorusEnabledToggle->setVisible(false);
+
+    // Hide Reverb controls
+    sliders[PluginKnobs::ReverbMix]->setVisible(false);
+    sliders[PluginKnobs::ReverbTone]->setVisible(false);
+    sliders[PluginKnobs::ReverbSize]->setVisible(false);
+    reverbEnabledToggle->setVisible(false);
+
+    // Hide Delay controls
+    sliders[PluginKnobs::DelayTime]->setVisible(false);
+    sliders[PluginKnobs::DelayFeedback]->setVisible(false);
+    sliders[PluginKnobs::DelayMix]->setVisible(false);
+    delayEnabledToggle->setVisible(false);
+    break;
+
+  case AMP:
+    // Show amp controls on amp page
+    sliders[PluginKnobs::Input]->setVisible(true);
+    sliders[PluginKnobs::Bass]->setVisible(true);
+    sliders[PluginKnobs::Middle]->setVisible(true);
+    sliders[PluginKnobs::Treble]->setVisible(true);
+    sliders[PluginKnobs::Output]->setVisible(true);
+
+    // Hide Tube Screamer controls
+    sliders[PluginKnobs::TSDrive]->setVisible(false);
+    sliders[PluginKnobs::TSTone]->setVisible(false);
+    sliders[PluginKnobs::TSLevel]->setVisible(false);
+    tsEnabledToggle->setVisible(false);
+
+    // Hide Klon controls
+    sliders[PluginKnobs::KlonGain]->setVisible(false);
+    sliders[PluginKnobs::KlonTreble]->setVisible(false);
+    sliders[PluginKnobs::KlonLevel]->setVisible(false);
+    klonEnabledToggle->setVisible(false);
+
+    // Hide Compressor controls
+    sliders[PluginKnobs::CompVolume]->setVisible(false);
+    sliders[PluginKnobs::CompAttack]->setVisible(false);
+    sliders[PluginKnobs::CompSustain]->setVisible(false);
+    compEnabledToggle->setVisible(false);
+
+    // Hide Boost controls
+    sliders[PluginKnobs::BoostVolume]->setVisible(false);
+    boostEnabledToggle->setVisible(false);
+
+    // Hide Chorus controls
+    sliders[PluginKnobs::ChorusRate]->setVisible(false);
+    sliders[PluginKnobs::ChorusDepth]->setVisible(false);
+    sliders[PluginKnobs::ChorusMix]->setVisible(false);
+    chorusEnabledToggle->setVisible(false);
+
+    // Hide Reverb controls
+    sliders[PluginKnobs::ReverbMix]->setVisible(false);
+    sliders[PluginKnobs::ReverbTone]->setVisible(false);
+    sliders[PluginKnobs::ReverbSize]->setVisible(false);
+    reverbEnabledToggle->setVisible(false);
+
+    // Hide Delay controls
+    sliders[PluginKnobs::DelayTime]->setVisible(false);
+    sliders[PluginKnobs::DelayFeedback]->setVisible(false);
+    sliders[PluginKnobs::DelayMix]->setVisible(false);
+    delayEnabledToggle->setVisible(false);
+    break;
+
+  case POST_EFFECTS:
+    // Hide amp controls on post-effects page
+    sliders[PluginKnobs::Input]->setVisible(false);
+    sliders[PluginKnobs::Bass]->setVisible(false);
+    sliders[PluginKnobs::Middle]->setVisible(false);
+    sliders[PluginKnobs::Treble]->setVisible(false);
+    sliders[PluginKnobs::Output]->setVisible(false);
+
+    // Hide Tube Screamer controls
+    sliders[PluginKnobs::TSDrive]->setVisible(false);
+    sliders[PluginKnobs::TSTone]->setVisible(false);
+    sliders[PluginKnobs::TSLevel]->setVisible(false);
+    tsEnabledToggle->setVisible(false);
+
+    // Hide Klon controls
+    sliders[PluginKnobs::KlonGain]->setVisible(false);
+    sliders[PluginKnobs::KlonTreble]->setVisible(false);
+    sliders[PluginKnobs::KlonLevel]->setVisible(false);
+    klonEnabledToggle->setVisible(false);
+
+    // Hide Compressor controls
+    sliders[PluginKnobs::CompVolume]->setVisible(false);
+    sliders[PluginKnobs::CompAttack]->setVisible(false);
+    sliders[PluginKnobs::CompSustain]->setVisible(false);
+    compEnabledToggle->setVisible(false);
+
+    // Hide Boost controls
+    sliders[PluginKnobs::BoostVolume]->setVisible(false);
+    boostEnabledToggle->setVisible(false);
+
+    // Show Chorus controls
+    sliders[PluginKnobs::ChorusRate]->setVisible(true);
+    sliders[PluginKnobs::ChorusDepth]->setVisible(true);
+    sliders[PluginKnobs::ChorusMix]->setVisible(true);
+    chorusEnabledToggle->setVisible(true);
+
+    // Show Reverb controls
+    sliders[PluginKnobs::ReverbMix]->setVisible(true);
+    sliders[PluginKnobs::ReverbTone]->setVisible(true);
+    sliders[PluginKnobs::ReverbSize]->setVisible(true);
+    reverbEnabledToggle->setVisible(true);
+
+    // Show Delay controls
+    sliders[PluginKnobs::DelayTime]->setVisible(true);
+    sliders[PluginKnobs::DelayFeedback]->setVisible(true);
+    sliders[PluginKnobs::DelayMix]->setVisible(true);
+    delayEnabledToggle->setVisible(true);
+    break;
+  }
+}
+
+void NamEditor::switchToPage(int pageIndex) {
+  if (pageIndex < 0 || pageIndex > 2)
+    return;
+
+  currentPage = pageIndex;
+  updatePageTabHighlight();
+  setKnobVisibility();
+  repaint();
+}
+
+void NamEditor::setupPageTabs() {
+  // Page navigation tabs
+  preEffectsPage = std::make_unique<juce::ImageButton>("PreEffectsPage");
+  ampPage = std::make_unique<juce::ImageButton>("AmpPage");
+  postEffectsPage = std::make_unique<juce::ImageButton>("PostEffectsPage");
+
+  // Load and set tab icons
+  juce::Image preIcon = juce::ImageFileFormat::loadFrom(
+      BinaryData::PreIcon_png, BinaryData::PreIcon_pngSize);
+  juce::Image ampIcon = juce::ImageFileFormat::loadFrom(
+      BinaryData::AmpIcon_png, BinaryData::AmpIcon_pngSize);
+  juce::Image postIcon = juce::ImageFileFormat::loadFrom(
+      BinaryData::PostIcon_png, BinaryData::PostIcon_pngSize);
+
+  preEffectsPage->setImages(false, true, true, preIcon, 1.0f,
+                            juce::Colours::transparentBlack, preIcon, 0.8f,
+                            juce::Colours::transparentBlack, preIcon, 0.6f,
+                            juce::Colours::transparentBlack);
+  ampPage->setImages(false, true, true, ampIcon, 1.0f,
+                     juce::Colours::transparentBlack, ampIcon, 0.8f,
+                     juce::Colours::transparentBlack, ampIcon, 0.6f,
+                     juce::Colours::transparentBlack);
+  postEffectsPage->setImages(false, true, true, postIcon, 1.0f,
+                             juce::Colours::transparentBlack, postIcon, 0.8f,
+                             juce::Colours::transparentBlack, postIcon, 0.6f,
+                             juce::Colours::transparentBlack);
+
+  addAndMakeVisible(preEffectsPage.get());
+  addAndMakeVisible(ampPage.get());
+  addAndMakeVisible(postEffectsPage.get());
+
+  // Attach onClick handlers
+  preEffectsPage->onClick = [this] { switchToPage(PRE_EFFECTS); };
+  ampPage->onClick = [this] { switchToPage(AMP); };
+  postEffectsPage->onClick = [this] { switchToPage(POST_EFFECTS); };
+
+  // Position page navigation tabs
+  int tabSize = 31;
+  int tabSpacing = 22;
+  int startX = 412;
+  int startY = 19;
+
+  preEffectsPage->setBounds(startX, startY, tabSize, tabSize);
+  ampPage->setBounds(startX + tabSize + tabSpacing, startY, tabSize, tabSize);
+  postEffectsPage->setBounds(startX + (tabSize + tabSpacing) * 2, startY,
+                             tabSize, tabSize);
+
+  // Set initial highlight state (AMP page is default)
+  updatePageTabHighlight();
+}
+
+void NamEditor::initializeTopRow() {
+
+  // --- initialize sliders ---
+
+  const int knobSizeMinimal = 54;
+
+  // Define top row slider configurations
+  struct TopRowSliderConfig {
+    PluginKnobs knobId;
+    int x;
+    int y;
+    CustomSlider::SliderTypes sliderType;
+  };
+
+  const TopRowSliderConfig configs[] = {
+      {PluginKnobs::PluginInput, 88, 89,
+       CustomSlider::SliderTypes::PluginInput},
+      {PluginKnobs::NoiseGate, 218, 89, CustomSlider::SliderTypes::Gate},
+      {PluginKnobs::Doubler, 674, 89, CustomSlider::SliderTypes::Doubler},
+      {PluginKnobs::PluginOutput, 804, 89,
+       CustomSlider::SliderTypes::PluginOutput}};
+
+  for (const auto &config : configs) {
+    auto &slider = sliders[config.knobId];
+
+    // Basic setup
+    slider.reset(new CustomSlider());
+    addAndMakeVisible(slider.get());
+
+    // Apply minimal look and feel
+    slider->setLookAndFeel(&lnfMinimal);
+    slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+
+    // Position and customize
+    slider->setBounds(config.x, config.y, knobSizeMinimal, knobSizeMinimal);
+    slider->setCustomSlider(config.sliderType);
+    slider->addListener(this);
+  }
+
+  // Initialize top row knob labels
+  drawKnobLabels();
+
+  // Initialize top row knob value labels
+  drawKnobValueLabels();
+  updateKnobValueLabels(); // Show initial values
+}
+
+void NamEditor::initializeAmpSliders() {
+  const int knobSize = 51;
+  const int xStart = 266;
+  const int xOffsetMultiplier = 74;
+  const int yPosition = 450;
+
+  // Collect all amp control knob IDs (excluding top row)
+  std::vector<int> ampKnobs;
+  for (int slider = 0; slider < NUM_SLIDERS; ++slider) {
+    if (slider != PluginKnobs::PluginInput &&
+        slider != PluginKnobs::NoiseGate && slider != PluginKnobs::Doubler &&
+        slider != PluginKnobs::PluginOutput) {
+      ampKnobs.push_back(slider);
     }
-    else
-    {
-        eqButton->setLedState(*audioProcessor.apvts.getRawParameterValue("EQ_BYPASS_STATE_ID"));
-        eqButton->setLabelVisible(true);
-        eqButton->reloadImages();
-    }
+  }
 
+  // Initialize amp sliders
+  int positionIndex = 0;
+  for (int knobId : ampKnobs) {
+    auto &slider = sliders[knobId];
 
-    eqEditor.updateGraphics();
+    // Basic setup
+    slider.reset(new CustomSlider());
+    addAndMakeVisible(slider.get());
 
-    setToneStackEnabled(bool(*audioProcessor.apvts.getRawParameterValue("TONE_STACK_ON_ID")));
+    // Apply main look and feel
+    slider->setLookAndFeel(&lnf);
+    slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
 
-    normalizeButton->setLedState(*audioProcessor.apvts.getRawParameterValue("NORMALIZE_ID"));
-    toneStackButton->setLedState(*audioProcessor.apvts.getRawParameterValue("TONE_STACK_ON_ID"));
-    irButton->setLedState(*audioProcessor.apvts.getRawParameterValue("CAB_ON_ID"));
+    // Position in main row
+    slider->setBounds(xStart + (positionIndex * xOffsetMultiplier), yPosition,
+                      knobSize, knobSize);
 
-    auto addons = audioProcessor.apvts.state.getOrCreateChildWithName("addons", nullptr);
-    // DBG(addons.getProperty ("model_path", juce::String()).toString());
-    // DBG(addons.getProperty ("ir_path", juce::String()).toString());
+    slider->addListener(this);
+    positionIndex++;
+  }
+}
 
-    audioProcessor.loadFromPreset(addons.getProperty("model_path", juce::String()), addons.getProperty("ir_path", juce::String()));
+void NamEditor::initializeTSSliders() {
+  const int knobSize = 53;
 
-    // Check the processor for Model and IR status after loading preset.
-    if (audioProcessor.getLastModelPath() != "null")
-    {
-        audioProcessor.getLastModelName() == "Model File Missing!" ? modelNameBox->setColour(juce::TextEditor::textColourId, juce::Colours::red)
-                                                                   : modelNameBox->setColour(juce::TextEditor::textColourId, juce::Colours::snow);
-        modelNameBox->setText(audioProcessor.getLastModelName());
-        modelNameBox->setCaretPosition(0);
-    }
-    else
-    {
-        modelNameBox->setText("");
-    }
+  const int xStart = 497;
+  const int xOffsetMultiplier = 65;
+  const int yPosition = 261;
 
-    if (audioProcessor.getLastIrPath() != "null")
-    {
-        audioProcessor.getLastIrName() == "IR File Missing!" ? irNameBox->setColour(juce::TextEditor::textColourId, juce::Colours::red)
-                                                             : irNameBox->setColour(juce::TextEditor::textColourId, juce::Colours::snow);
-        irNameBox->setText(audioProcessor.getLastIrName());
-        irNameBox->setCaretPosition(0);
-    }
-    else
-    {
-        irNameBox->setText("");
-    }
+  // TS slider IDs
+  const int tsSliders[] = {PluginKnobs::TSDrive, PluginKnobs::TSTone,
+                           PluginKnobs::TSLevel};
 
-    clearModelButton->setVisible(audioProcessor.getNamModelStatus());
-    clearIrButton->setVisible(audioProcessor.getIrStatus());
+  for (int i = 0; i < 3; ++i) {
+    auto &slider = sliders[tsSliders[i]];
+
+    // Basic setup
+    slider.reset(new CustomSlider());
+    addAndMakeVisible(slider.get());
+
+    // Apply pre-effects look and feel
+    slider->setLookAndFeel(&lnfPreEffects);
+    slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+
+    // Position in row
+    slider->setBounds(xStart + (i * xOffsetMultiplier), yPosition, knobSize,
+                      knobSize);
+
+    slider->addListener(this);
+
+    // NO setCustomSlider() call - use default (same as amp sliders)
+  }
+
+  // TS Enable toggle
+  tsEnabledToggle = std::make_unique<juce::ImageButton>("TS Enable");
+  addAndMakeVisible(tsEnabledToggle.get());
+
+  // Set up the button to act as a toggle button
+  tsEnabledToggle->setClickingTogglesState(true);
+
+  // Set initial images (will be updated by updateTSToggleAppearance)
+  tsEnabledToggle->setImages(
+      false, true, true, pedalButtonOff, 1.0f,
+      juce::Colours::transparentBlack,                        // normal
+      pedalButtonOff, 0.8f, juce::Colours::transparentBlack,  // over
+      pedalButtonOff, 1.0f, juce::Colours::transparentBlack); // down
+
+  // Add onClick handler to update appearance when toggled
+  tsEnabledToggle->onClick = [this]() { updateTSToggleAppearance(); };
+
+  tsEnabledToggle->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+
+  tsEnabledToggle->setBounds(561, 433, 53, 53);
+}
+
+void NamEditor::initializeKlonSliders() {
+  const int knobSize = 53;
+  const int yPosition = 262;
+
+  // --- Knob 1: Gain ---
+  auto &gainSlider = sliders[PluginKnobs::KlonGain];
+  gainSlider.reset(new CustomSlider());
+  addAndMakeVisible(gainSlider.get());
+  gainSlider->setLookAndFeel(&lnfPreEffects);
+  gainSlider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+  gainSlider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+  gainSlider->addListener(this);
+
+  // Set Position Manually for Gain
+  gainSlider->setBounds(738, yPosition, knobSize, knobSize);
+
+  // --- Knob 2: Treble ---
+  auto &trebleSlider = sliders[PluginKnobs::KlonTreble];
+  trebleSlider.reset(new CustomSlider());
+  addAndMakeVisible(trebleSlider.get());
+  trebleSlider->setLookAndFeel(&lnfPreEffects);
+  trebleSlider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+  trebleSlider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+  trebleSlider->addListener(this);
+
+  // Set Position Manually for Treble
+  trebleSlider->setBounds(793, yPosition, knobSize, knobSize);
+
+  // --- Knob 3: Level ---
+  auto &levelSlider = sliders[PluginKnobs::KlonLevel];
+  levelSlider.reset(new CustomSlider());
+  addAndMakeVisible(levelSlider.get());
+  levelSlider->setLookAndFeel(&lnfPreEffects);
+  levelSlider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+  levelSlider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+  levelSlider->addListener(this);
+
+  // Set Position Manually for Level
+  levelSlider->setBounds(852, yPosition, knobSize, knobSize);
+
+  // --- Toggle Button ---
+  klonEnabledToggle = std::make_unique<juce::ImageButton>("Klon Enable");
+  addAndMakeVisible(klonEnabledToggle.get());
+  klonEnabledToggle->setClickingTogglesState(true);
+  klonEnabledToggle->setImages(
+      false, true, true, pedalButtonOff, 1.0f,
+      juce::Colours::transparentBlack,                        // normal
+      pedalButtonOff, 0.8f, juce::Colours::transparentBlack,  // over
+      pedalButtonOff, 1.0f, juce::Colours::transparentBlack); // down
+  klonEnabledToggle->onClick = [this]() { updateKlonToggleAppearance(); };
+  klonEnabledToggle->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+
+  // Set Position Manually for Toggle
+  klonEnabledToggle->setBounds(793, 433, 53, 53);
+}
+
+void NamEditor::initializeCompSliders() {
+  const int knobSize = 53;
+
+  const int xStart = 48;
+  const int xOffsetMultiplier = 57;
+  const int yPosition = 261;
+
+  // Compressor slider IDs
+  const int compSliders[] = {PluginKnobs::CompVolume, PluginKnobs::CompAttack,
+                             PluginKnobs::CompSustain};
+
+  for (int i = 0; i < 3; ++i) {
+    auto &slider = sliders[compSliders[i]];
+
+    // Basic setup
+    slider.reset(new CustomSlider());
+    addAndMakeVisible(slider.get());
+
+    // Apply pre-effects look and feel (same as TS)
+    slider->setLookAndFeel(&lnfPreEffects);
+    slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+
+    // Position in row
+    slider->setBounds(xStart + (i * xOffsetMultiplier), yPosition, knobSize,
+                      knobSize);
+
+    slider->addListener(this);
+  }
+
+  // Compressor Enable toggle
+  compEnabledToggle = std::make_unique<juce::ImageButton>("Comp Enable");
+  addAndMakeVisible(compEnabledToggle.get());
+
+  // Set up the button to act as a toggle button
+  compEnabledToggle->setClickingTogglesState(true);
+
+  // Use same pedal button images as TS
+  compEnabledToggle->setImages(
+      false, true, true, pedalButtonOff, 1.0f,
+      juce::Colours::transparentBlack,                        // normal
+      pedalButtonOff, 0.8f, juce::Colours::transparentBlack,  // over
+      pedalButtonOff, 1.0f, juce::Colours::transparentBlack); // down
+
+  // Add onClick handler to update appearance when toggled
+  compEnabledToggle->onClick = [this]() { updateCompToggleAppearance(); };
+
+  compEnabledToggle->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+
+  // Placeholder position
+  compEnabledToggle->setBounds(104, 433, 53, 53);
+}
+
+void NamEditor::initializeBoostSliders() {
+  const int knobSize = 62;
+
+  const int xStart = 324;
+  const int yPosition = 260; // Same Y as other pedals
+
+  auto &slider = sliders[PluginKnobs::BoostVolume];
+
+  // Basic setup
+  slider.reset(new CustomSlider());
+  addAndMakeVisible(slider.get());
+
+  // Apply pre-effects look and feel
+  slider->setLookAndFeel(&lnfPreEffects);
+  slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+  slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+
+  // Position
+  slider->setBounds(xStart, yPosition, knobSize, knobSize);
+
+  slider->addListener(this);
+
+  // Boost Enable toggle
+  boostEnabledToggle = std::make_unique<juce::ImageButton>("Boost Enable");
+  addAndMakeVisible(boostEnabledToggle.get());
+
+  // Set up the button to act as a toggle button
+  boostEnabledToggle->setClickingTogglesState(true);
+
+  // Use same pedal button images
+  boostEnabledToggle->setImages(
+      false, true, true, pedalButtonOff, 1.0f,
+      juce::Colours::transparentBlack,                        // normal
+      pedalButtonOff, 0.8f, juce::Colours::transparentBlack,  // over
+      pedalButtonOff, 1.0f, juce::Colours::transparentBlack); // down
+
+  // Add onClick handler to update appearance when toggled
+  boostEnabledToggle->onClick = [this]() { updateBoostToggleAppearance(); };
+
+  boostEnabledToggle->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+
+  // Position below knob (roughly centered)
+  // Comp toggle is at x=104 (knobs at 48, 105, 162) -> toggle ~middle knob
+  // TS toggle is at x=561 (knobs at 497, 562, 627) -> toggle ~middle knob
+  // Boost knob is at 310. Toggle should be centered below it.
+  boostEnabledToggle->setBounds(327, 433, 53, 53);
+}
+
+void NamEditor::initializeChorusSliders() {
+  const int knobSize = 52;
+
+  const int xStart = 157;
+  const int xOffsetMultiplier = 65;
+  const int yPosition = 255;
+
+  // Chorus slider IDs
+  const int chorusSliders[] = {PluginKnobs::ChorusRate,
+                               PluginKnobs::ChorusDepth,
+                               PluginKnobs::ChorusMix};
+
+  for (int i = 0; i < 3; ++i) {
+    auto &slider = sliders[chorusSliders[i]];
+
+    // Basic setup
+    slider.reset(new CustomSlider());
+    addAndMakeVisible(slider.get());
+
+    // Apply post-effects look and feel
+    slider->setLookAndFeel(&lnfPostEffects);
+    slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+
+    // Position in row
+    slider->setBounds(xStart + (i * xOffsetMultiplier), yPosition, knobSize,
+                      knobSize);
+
+    slider->addListener(this);
+  }
+
+  // Chorus Enable toggle
+  chorusEnabledToggle = std::make_unique<juce::ImageButton>("Chorus Enable");
+  addAndMakeVisible(chorusEnabledToggle.get());
+
+  // Set up the button to act as a toggle button
+  chorusEnabledToggle->setClickingTogglesState(true);
+
+  // Use post-effects pedal button images
+  chorusEnabledToggle->setImages(
+      false, true, true, pedalButtonOffPostEffects, 1.0f,
+      juce::Colours::transparentBlack, // normal
+      pedalButtonOffPostEffects, 0.8f, juce::Colours::transparentBlack,  // over
+      pedalButtonOffPostEffects, 1.0f, juce::Colours::transparentBlack); // down
+
+  // Add onClick handler to update appearance when toggled
+  chorusEnabledToggle->onClick = [this]() { updateChorusToggleAppearance(); };
+
+  chorusEnabledToggle->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+
+  // Position below knobs (roughly centered between them)
+  chorusEnabledToggle->setBounds(221, 428, 52, 52);
+}
+
+void NamEditor::initializeReverbSliders() {
+  const int knobSize = 52;
+
+  const int xStart = 619;
+  const int xOffsetMultiplier = 66;
+  const int yPosition = 253;
+
+  // Reverb slider IDs
+  const int reverbSliders[] = {PluginKnobs::ReverbMix, PluginKnobs::ReverbSize,
+                               PluginKnobs::ReverbTone};
+
+  for (int i = 0; i < 3; ++i) {
+    auto &slider = sliders[reverbSliders[i]];
+
+    // Basic setup
+    slider.reset(new CustomSlider());
+    addAndMakeVisible(slider.get());
+
+    // Apply post-effects look and feel
+    slider->setLookAndFeel(&lnfPostEffects);
+    slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+
+    // Position in row
+    slider->setBounds(xStart + (i * xOffsetMultiplier), yPosition, knobSize,
+                      knobSize);
+
+    slider->addListener(this);
+  }
+
+  // Reverb Enable toggle
+  reverbEnabledToggle = std::make_unique<juce::ImageButton>("Reverb Enable");
+  addAndMakeVisible(reverbEnabledToggle.get());
+
+  // Set up the button to act as a toggle button
+  reverbEnabledToggle->setClickingTogglesState(true);
+
+  // Use post-effects pedal button images
+  reverbEnabledToggle->setImages(
+      false, true, true, pedalButtonOffPostEffects, 1.0f,
+      juce::Colours::transparentBlack, // normal
+      pedalButtonOffPostEffects, 0.8f, juce::Colours::transparentBlack,  // over
+      pedalButtonOffPostEffects, 1.0f, juce::Colours::transparentBlack); // down
+
+  // Add onClick handler to update appearance when toggled
+  reverbEnabledToggle->onClick = [this]() { updateReverbToggleAppearance(); };
+
+  reverbEnabledToggle->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+
+  // Position below knobs (roughly centered between them)
+  reverbEnabledToggle->setBounds(683, 428, 52, 52);
+}
+
+void NamEditor::initializeDelaySliders() {
+  const int knobSize = 52;
+
+  const int xStart = 388;
+  const int xOffsetMultiplier = 65;
+  const int yPosition = 255;
+
+  // Delay slider IDs
+  const int delaySliders[] = {PluginKnobs::DelayTime,
+                              PluginKnobs::DelayFeedback,
+                              PluginKnobs::DelayMix};
+
+  for (int i = 0; i < 3; ++i) {
+    auto &slider = sliders[delaySliders[i]];
+
+    // Basic setup
+    slider.reset(new CustomSlider());
+    addAndMakeVisible(slider.get());
+
+    // Apply post-effects look and feel
+    slider->setLookAndFeel(&lnfPostEffects);
+    slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+
+    // Position in row
+    slider->setBounds(xStart + (i * xOffsetMultiplier), yPosition, knobSize,
+                      knobSize);
+
+    slider->addListener(this);
+  }
+
+  // Delay Enable toggle
+  delayEnabledToggle = std::make_unique<juce::ImageButton>("Delay Enable");
+  addAndMakeVisible(delayEnabledToggle.get());
+
+  // Set up the button to act as a toggle button
+  delayEnabledToggle->setClickingTogglesState(true);
+
+  // Use post-effects pedal button images
+  delayEnabledToggle->setImages(
+      false, true, true, pedalButtonOffPostEffects, 1.0f,
+      juce::Colours::transparentBlack, // normal
+      pedalButtonOffPostEffects, 0.8f, juce::Colours::transparentBlack,  // over
+      pedalButtonOffPostEffects, 1.0f, juce::Colours::transparentBlack); // down
+
+  // Add onClick handler to update appearance when toggled
+  delayEnabledToggle->onClick = [this]() { updateDelayToggleAppearance(); };
+
+  delayEnabledToggle->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+
+  // Position below knobs (roughly centered between them)
+  delayEnabledToggle->setBounds(451, 428, 52, 52);
+}
+
+void NamEditor::updateTSToggleAppearance() {
+  // Update the button images based on toggle state
+  bool isToggled = tsEnabledToggle->getToggleState();
+
+  if (isToggled) {
+    // Show ON image when enabled
+    tsEnabledToggle->setImages(
+        false, true, true, pedalButtonOn, 1.0f,
+        juce::Colours::transparentBlack,                       // normal
+        pedalButtonOn, 1.0f, juce::Colours::transparentBlack,  // over
+        pedalButtonOn, 1.0f, juce::Colours::transparentBlack); // down
+  } else {
+    // Show OFF image when disabled
+    tsEnabledToggle->setImages(
+        false, true, true, pedalButtonOff, 1.0f,
+        juce::Colours::transparentBlack,                        // normal
+        pedalButtonOff, 1.0f, juce::Colours::transparentBlack,  // over
+        pedalButtonOff, 1.0f, juce::Colours::transparentBlack); // down
+  }
+}
+
+void NamEditor::updateCompToggleAppearance() {
+  // Update the button images based on toggle state
+  bool isToggled = compEnabledToggle->getToggleState();
+
+  if (isToggled) {
+    // Show ON image when enabled
+    compEnabledToggle->setImages(
+        false, true, true, pedalButtonOn, 1.0f,
+        juce::Colours::transparentBlack,                       // normal
+        pedalButtonOn, 1.0f, juce::Colours::transparentBlack,  // over
+        pedalButtonOn, 1.0f, juce::Colours::transparentBlack); // down
+  } else {
+    // Show OFF image when disabled
+    compEnabledToggle->setImages(
+        false, true, true, pedalButtonOff, 1.0f,
+        juce::Colours::transparentBlack,                        // normal
+        pedalButtonOff, 1.0f, juce::Colours::transparentBlack,  // over
+        pedalButtonOff, 1.0f, juce::Colours::transparentBlack); // down
+  }
+}
+
+void NamEditor::updateBoostToggleAppearance() {
+  // Update the button images based on toggle state
+  bool isToggled = boostEnabledToggle->getToggleState();
+
+  if (isToggled) {
+    // Show ON image when enabled
+    boostEnabledToggle->setImages(
+        false, true, true, pedalButtonOn, 1.0f,
+        juce::Colours::transparentBlack,                       // normal
+        pedalButtonOn, 1.0f, juce::Colours::transparentBlack,  // over
+        pedalButtonOn, 1.0f, juce::Colours::transparentBlack); // down
+  } else {
+    // Show OFF image when disabled
+    boostEnabledToggle->setImages(
+        false, true, true, pedalButtonOff, 1.0f,
+        juce::Colours::transparentBlack,                        // normal
+        pedalButtonOff, 1.0f, juce::Colours::transparentBlack,  // over
+        pedalButtonOff, 1.0f, juce::Colours::transparentBlack); // down
+  }
+}
+
+void NamEditor::updateChorusToggleAppearance() {
+  // Update the button images based on toggle state
+  bool isToggled = chorusEnabledToggle->getToggleState();
+
+  if (isToggled) {
+    // Show ON image when enabled
+    chorusEnabledToggle->setImages(
+        false, true, true, pedalButtonOnPostEffects, 1.0f,
+        juce::Colours::transparentBlack, // normal
+        pedalButtonOnPostEffects, 1.0f, juce::Colours::transparentBlack, // over
+        pedalButtonOnPostEffects, 1.0f,
+        juce::Colours::transparentBlack); // down
+  } else {
+    // Show OFF image when disabled
+    chorusEnabledToggle->setImages(false, true, true, pedalButtonOffPostEffects,
+                                   1.0f,
+                                   juce::Colours::transparentBlack, // normal
+                                   pedalButtonOffPostEffects, 1.0f,
+                                   juce::Colours::transparentBlack, // over
+                                   pedalButtonOffPostEffects, 1.0f,
+                                   juce::Colours::transparentBlack); // down
+  }
+}
+
+void NamEditor::updateReverbToggleAppearance() {
+  // Update the button images based on toggle state
+  bool isToggled = reverbEnabledToggle->getToggleState();
+
+  if (isToggled) {
+    // Show ON image when enabled
+    reverbEnabledToggle->setImages(
+        false, true, true, pedalButtonOnPostEffects, 1.0f,
+        juce::Colours::transparentBlack, // normal
+        pedalButtonOnPostEffects, 1.0f, juce::Colours::transparentBlack, // over
+        pedalButtonOnPostEffects, 1.0f,
+        juce::Colours::transparentBlack); // down
+  } else {
+    // Show OFF image when disabled
+    reverbEnabledToggle->setImages(false, true, true, pedalButtonOffPostEffects,
+                                   1.0f,
+                                   juce::Colours::transparentBlack, // normal
+                                   pedalButtonOffPostEffects, 1.0f,
+                                   juce::Colours::transparentBlack, // over
+                                   pedalButtonOffPostEffects, 1.0f,
+                                   juce::Colours::transparentBlack); // down
+  }
+}
+
+void NamEditor::updateDelayToggleAppearance() {
+  // Update the button images based on toggle state
+  bool isToggled = delayEnabledToggle->getToggleState();
+
+  if (isToggled) {
+    // Show ON image when enabled
+    delayEnabledToggle->setImages(
+        false, true, true, pedalButtonOnPostEffects, 1.0f,
+        juce::Colours::transparentBlack, // normal
+        pedalButtonOnPostEffects, 1.0f, juce::Colours::transparentBlack, // over
+        pedalButtonOnPostEffects, 1.0f,
+        juce::Colours::transparentBlack); // down
+  } else {
+    // Show OFF image when disabled
+    delayEnabledToggle->setImages(false, true, true, pedalButtonOffPostEffects,
+                                  1.0f,
+                                  juce::Colours::transparentBlack, // normal
+                                  pedalButtonOffPostEffects, 1.0f,
+                                  juce::Colours::transparentBlack, // over
+                                  pedalButtonOffPostEffects, 1.0f,
+                                  juce::Colours::transparentBlack); // down
+  }
+}
+
+void NamEditor::updateKlonToggleAppearance() {
+  // Update the button images based on toggle state
+  bool isToggled = klonEnabledToggle->getToggleState();
+
+  if (isToggled) {
+    // Show ON image when enabled
+    klonEnabledToggle->setImages(
+        false, true, true, pedalButtonOn, 1.0f,
+        juce::Colours::transparentBlack,                       // normal
+        pedalButtonOn, 1.0f, juce::Colours::transparentBlack,  // over
+        pedalButtonOn, 1.0f, juce::Colours::transparentBlack); // down
+  } else {
+    // Show OFF image when disabled
+    klonEnabledToggle->setImages(
+        false, true, true, pedalButtonOff, 1.0f,
+        juce::Colours::transparentBlack,                        // normal
+        pedalButtonOff, 1.0f, juce::Colours::transparentBlack,  // over
+        pedalButtonOff, 1.0f, juce::Colours::transparentBlack); // down
+  }
+}
+
+void NamEditor::initializeSliderAttachments() {
+  // Hook slider attachments
+  for (int slider = 0; slider < NUM_SLIDERS; ++slider) {
+    sliderAttachments[slider] =
+        std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            audioProcessor.apvts, sliderIDs[slider], *sliders[slider]);
+  }
+
+  // Special case: Doubler uses different parameter ID
+  sliderAttachments[PluginKnobs::Doubler] =
+      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+          audioProcessor.apvts, "DOUBLER_SPREAD_ID",
+          *sliders[PluginKnobs::Doubler]);
+
+  // Attach TS Enable toggle button
+  tsEnabledAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          audioProcessor.apvts, "TS_ENABLED_ID", *tsEnabledToggle);
+
+  // Attach Compressor Enable toggle button
+  compEnabledAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          audioProcessor.apvts, "COMP_ENABLED_ID", *compEnabledToggle);
+
+  // Attach Boost Enable toggle button
+  boostEnabledAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          audioProcessor.apvts, "BOOST_ENABLED_ID", *boostEnabledToggle);
+
+  // Attach Reverb Enable toggle button
+  reverbEnabledAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          audioProcessor.apvts, "REVERB_ENABLED_ID", *reverbEnabledToggle);
+
+  // Attach Delay Enable toggle button
+  delayEnabledAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          audioProcessor.apvts, "DELAY_ENABLED_ID", *delayEnabledToggle);
+
+  // Attach Chorus Enable toggle button
+  chorusEnabledAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          audioProcessor.apvts, "CHORUS_ENABLED_ID", *chorusEnabledToggle);
+
+  // Attach Klon Enable toggle button
+  klonEnabledAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          audioProcessor.apvts, "KLON_ENABLED_ID", *klonEnabledToggle);
 }

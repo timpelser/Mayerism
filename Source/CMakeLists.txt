@@ -14,14 +14,44 @@ PRIVATE
     PluginProcessor.cpp
     PluginProcessor.h
     MyLookAndFeel.h
-    AssetManager.h
-    EqEditor.cpp
-    EqEditor.h
-    EqProcessor.cpp
-    EqProcessor.h
     TopBarComponent.cpp
     TopBarComponent.h
     DoublerProcessor.h
+    pedals/Compressor/CompressorProcessor.h
+    pedals/CleanBoost/CleanBoostProcessor.h
+    pedals/Chorus/ChorusProcessor.h
+    pedals/Reverb/ReverbProcessor.h
+    pedals/Delay/DelayProcessor.h
+    pedals/TubeScreamer/TSProcessor.h
+    pedals/TubeScreamer/TSProcessor.cpp
+    pedals/TubeScreamer/dsp/ClippingStage.cpp
+    pedals/TubeScreamer/dsp/ClippingStage.h
+    pedals/TubeScreamer/dsp/ToneStage.cpp
+    pedals/TubeScreamer/dsp/ToneStage.h
+    pedals/TubeScreamer/dsp/ClipWDFa.h
+    pedals/TubeScreamer/dsp/ClipWDFb.h
+    pedals/TubeScreamer/dsp/ClipWDFc.h
+    pedals/KlonCentaur/KlonProcessor.h
+    pedals/KlonCentaur/KlonProcessor.cpp
+    pedals/KlonCentaur/klon_pch.h
+    pedals/KlonCentaur/dsp/GainStageProc.h
+    pedals/KlonCentaur/dsp/GainStageProc.cpp
+    pedals/KlonCentaur/dsp/PreAmpStage.h
+    pedals/KlonCentaur/dsp/PreAmpStage.cpp
+    pedals/KlonCentaur/dsp/ClippingStage.h
+    pedals/KlonCentaur/dsp/ClippingStage.cpp
+    pedals/KlonCentaur/dsp/DiodePair.h
+    pedals/KlonCentaur/dsp/AmpStage.h
+    pedals/KlonCentaur/dsp/FeedForward2.h
+    pedals/KlonCentaur/dsp/FeedForward2.cpp
+    pedals/KlonCentaur/dsp/SummingAmp.h
+    pedals/KlonCentaur/dsp/InputBufferProcessor.h
+    pedals/KlonCentaur/dsp/InputBufferProcessor.cpp
+    pedals/KlonCentaur/dsp/ToneFilterProcessor.h
+    pedals/KlonCentaur/dsp/ToneFilterProcessor.cpp
+    pedals/KlonCentaur/dsp/OutputStageProcessor.h
+    pedals/KlonCentaur/dsp/OutputStageProcessor.cpp
+    pedals/KlonCentaur/dependencies/toms917/toms917.cpp
     architecture.hpp
 )
 

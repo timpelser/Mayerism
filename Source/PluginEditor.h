@@ -1,37 +1,43 @@
 #pragma once
 
+// clang-format off
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 #include "NamEditor.h"
+// clang-format on
 
 //==============================================================================
 /**
  */
-class NamJUCEAudioProcessorEditor : public juce::AudioProcessorEditor, public juce::Timer, public juce::Slider::Listener
-{
+class NamJUCEAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                    public juce::Timer,
+                                    public juce::Slider::Listener {
 public:
-    NamJUCEAudioProcessorEditor(NamJUCEAudioProcessor&);
-    ~NamJUCEAudioProcessorEditor() override;
+  NamJUCEAudioProcessorEditor(NamJUCEAudioProcessor &);
+  ~NamJUCEAudioProcessorEditor() override;
 
-    //==============================================================================
-    void paint (juce::Graphics&) override;
-    void resized () override;
-    void timerCallback ();
-    void sliderValueChanged (juce::Slider* slider);
+  //==============================================================================
+  void paint(juce::Graphics &) override;
+  void resized() override;
+  void timerCallback();
+  void sliderValueChanged(juce::Slider *slider);
 
-    void setPluginSize (bool makeSmall);
+  void setPluginSize(bool makeSmall);
 
 private:
-    NamEditor namEditor;
+  NamEditor namEditor;
 
-    std::unique_ptr<juce::ImageButton> resizeButton;
-    std::unique_ptr<juce::ToggleButton> hiddenResizeToggle;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> resizeToggleAttachment;
+  std::unique_ptr<juce::ImageButton> resizeButton;
+  std::unique_ptr<juce::ToggleButton> hiddenResizeToggle;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
+      resizeToggleAttachment;
 
-    juce::Image arrowExpand = juce::ImageFileFormat::loadFrom(BinaryData::arrowexpand_png, BinaryData::arrowexpand_pngSize);
-    juce::Image arrowContract = juce::ImageFileFormat::loadFrom(BinaryData::arrowcontract_png, BinaryData::arrowcontract_pngSize);
+  juce::Image arrowExpand = juce::ImageFileFormat::loadFrom(
+      BinaryData::arrowexpand_png, BinaryData::arrowexpand_pngSize);
+  juce::Image arrowContract = juce::ImageFileFormat::loadFrom(
+      BinaryData::arrowcontract_png, BinaryData::arrowcontract_pngSize);
 
-    NamJUCEAudioProcessor& audioProcessor;
+  NamJUCEAudioProcessor &audioProcessor;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamJUCEAudioProcessorEditor)
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamJUCEAudioProcessorEditor)
 };
