@@ -1,0 +1,98 @@
+name: Build Windows VST3 Installer
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+env:
+  BUILD_DIR: build
+  OUTPUT_DIR: output
+  TARGET: Mayerism
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'    # important if JUCE or other libs are submodules
+          fetch-depth: 0
+
+      - name: Set up Git user (for actions that rely on tags)
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+
+      - name: Install CMake
+        uses: lukka/get-cmake@v4
+
+      - name: Configure CMake (Release)
+        run: cmake -B ${{ env.BUILD_DIR }} -S . -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build VST3 (Release)
+        run: cmake --build ${{ env.BUILD_DIR }} --config Release --target ${{ env.TARGET }}
+
+      - name: Prepare output directory and copy VST3 bundle
+        run: |
+          if (Test-Path $env:OUTPUT_DIR) { Remove-Item $env:OUTPUT_DIR -Recurse -Force }
+          New-Item -ItemType Directory -Path $env:OUTPUT_DIR
+          # copy the entire .vst3 bundle (robocopy handles directories)
+          $src = "${{ env.BUILD_DIR }}\Release\${{ env.TARGET }}.vst3"
+          if (-not (Test-Path $src)) {
+            Write-Error "Expected vst3 bundle at: $src"
+            exit 1
+          }
+          robocopy $src $env:OUTPUT_DIR\${{ env.TARGET }}.vst3 /MIR
+
+      - name: Install Inno Setup
+        uses: crazy-max/ghaction-inno-setup@v3
+
+      - name: Create installer.iss with version (if pushed with tag)
+        id: mkiss
+        run: |
+          # determine version from tag if present, otherwise default 1.0.0
+          $version = "1.0.0"
+          if ($env:GITHUB_REF -match 'refs/tags/v(.+)$') {
+            $version = $Matches[1]
+          }
+          Write-Host "Detected version: $version"
+          # Set MyAppVersion as a preprocessor constant for Inno Setup
+          # We'll prepend a small header used by Inno Setup preprocessor to set MyAppVersion.
+          $header = "#define MyAppVersion \"${version}`r`n"
+          $orig = Get-Content installer.iss -Raw
+          $header + $orig | Set-Content installer_work.iss -Encoding UTF8
+          echo "installer_file=installer_work.iss" >> $env:GITHUB_OUTPUT
+
+      - name: Compile installer (.exe)
+        run: |
+          # iscc is installed by the Inno Setup action and available on PATH
+          $infile = "${{ steps.mkiss.outputs.installer_file }}"
+          if (-not (Test-Path $infile)) { $infile = "installer_work.iss" }
+          iscc $infile
+        shell: powershell
+
+      - name: Find generated installer exe
+        run: |
+          # Output file name pattern is OutputBaseFilename set in the ISS (we included version)
+          $files = Get-ChildItem -Path . -Filter "*Mayerism-Installer*.exe" -Recurse
+          if ($files.Count -eq 0) {
+            Write-Error "Installer exe not found"
+            exit 1
+          }
+          $installer = $files[0].FullName
+          echo "installer_path=$installer" >> $env:GITHUB_OUTPUT
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mayerism-installer
+          path: ${{ steps.mkiss.outputs.installer_file }}  # fallback if needed
+      - name: Upload installer (explicit)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mayerism-installer-exe
+          path: Mayerism-Installer-*.exe
