@@ -114,6 +114,12 @@ void NamJUCEAudioProcessor::prepareToPlay(double sampleRate,
   boostVolume = apvts.getRawParameterValue("BOOST_VOLUME_ID");
   boostEnabled = apvts.getRawParameterValue("BOOST_ENABLED_ID");
 
+  // Hook Chorus parameters
+  chorusRate = apvts.getRawParameterValue("CHORUS_RATE_ID");
+  chorusDepth = apvts.getRawParameterValue("CHORUS_DEPTH_ID");
+  chorusMix = apvts.getRawParameterValue("CHORUS_MIX_ID");
+  chorusEnabled = apvts.getRawParameterValue("CHORUS_ENABLED_ID");
+
   // Hook Reverb parameters
   reverbMix = apvts.getRawParameterValue("REVERB_MIX_ID");
   reverbTone = apvts.getRawParameterValue("REVERB_TONE_ID");
@@ -127,6 +133,8 @@ void NamJUCEAudioProcessor::prepareToPlay(double sampleRate,
   delayEnabled = apvts.getRawParameterValue("DELAY_ENABLED_ID");
 
   doubler.prepare(spec);
+
+  chorusProcessor.prepare(spec);
 
   reverbProcessor.prepare(spec);
 
@@ -251,6 +259,14 @@ void NamJUCEAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     doubler.process(buffer);
   }
 
+  // Chorus
+  if (chorusEnabled->load() > 0.5f) {
+    chorusProcessor.setRate(chorusRate->load());
+    chorusProcessor.setDepth(chorusDepth->load());
+    chorusProcessor.setMix(chorusMix->load());
+    chorusProcessor.process(buffer);
+  }
+
   // Delay
   if (delayEnabled->load() > 0.5f) {
     delayProcessor.setTime(delayTime->load());
@@ -265,9 +281,10 @@ void NamJUCEAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     reverbProcessor.setTone(reverbTone->load());
     reverbProcessor.setSize(reverbSize->load());
     reverbProcessor.process(buffer);
-  }  
+  }
 
-  // Apply independent output gain AFTER all post-effects, BEFORE output metering
+  // Apply independent output gain AFTER all post-effects, BEFORE output
+  // metering
   buffer.applyGain(std::powf(10.0f, pluginOutputGain->load() / 20.0f));
 
   meterOutSource.measureBlock(buffer);
@@ -323,6 +340,16 @@ NamJUCEAudioProcessor::createParameters() {
       "BOOST_VOLUME_ID", "BOOST_VOLUME", 0.0f, 10.0f, 5.0f));
   parameters.push_back(std::make_unique<juce::AudioParameterBool>(
       "BOOST_ENABLED_ID", "BOOST_ENABLED", false));
+
+  // Chorus parameters (Boss CE-1 authentic ranges)
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "CHORUS_RATE_ID", "CHORUS_RATE", 0.3f, 3.0f, 1.65f));
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "CHORUS_DEPTH_ID", "CHORUS_DEPTH", 0.01f, 0.05f, 0.03f));
+  parameters.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "CHORUS_MIX_ID", "CHORUS_MIX", 0.0f, 100.0f, 50.0f));
+  parameters.push_back(std::make_unique<juce::AudioParameterBool>(
+      "CHORUS_ENABLED_ID", "CHORUS_ENABLED", false));
 
   auto normRange = NormalisableRange<float>(0.0, 20.0, 0.1f);
   parameters.push_back(std::make_unique<juce::AudioParameterFloat>(

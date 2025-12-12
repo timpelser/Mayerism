@@ -7,7 +7,7 @@
 #include "PresetManager/PresetManagerComponent.h"
 // clang-format on
 
-#define NUM_SLIDERS 22
+#define NUM_SLIDERS 25
 
 class NamEditor : public juce::AudioProcessorEditor,
                   public juce::Timer,
@@ -41,6 +41,9 @@ public:
     CompAttack,   // Compressor attack time
     CompSustain,  // Compressor sustain/release time
     BoostVolume,  // Clean Boost volume
+    ChorusRate,   // Chorus rate/speed in Hz
+    ChorusDepth,  // Chorus depth/modulation amount
+    ChorusMix,    // Chorus wet/dry mix
     ReverbMix,    // Reverb wet/dry mix
     ReverbTone,   // Reverb damping/tone
     ReverbSize,   // Reverb room size
@@ -62,7 +65,8 @@ private:
       "OUTPUT_ID",       "PLUGIN_OUTPUT_ID", "DOUBLER_ID",
       "TS_DRIVE_ID",     "TS_TONE_ID",       "TS_LEVEL_ID",
       "COMP_VOLUME_ID",  "COMP_ATTACK_ID",   "COMP_SUSTAIN_ID",
-      "BOOST_VOLUME_ID", "REVERB_MIX_ID",    "REVERB_TONE_ID",
+      "BOOST_VOLUME_ID", "CHORUS_RATE_ID",   "CHORUS_DEPTH_ID",
+      "CHORUS_MIX_ID",   "REVERB_MIX_ID",    "REVERB_TONE_ID",
       "REVERB_SIZE_ID",  "DELAY_TIME_ID",    "DELAY_FEEDBACK_ID",
       "DELAY_MIX_ID"};
 
@@ -135,6 +139,11 @@ private:
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
       delayEnabledAttachment;
 
+  // Chorus enable/bypass toggle
+  std::unique_ptr<juce::ImageButton> chorusEnabledToggle;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
+      chorusEnabledAttachment;
+
   NamJUCEAudioProcessor &audioProcessor;
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamEditor)
 
@@ -153,6 +162,7 @@ private:
   void updateTSToggleAppearance();
   void updateCompToggleAppearance();
   void updateBoostToggleAppearance();
+  void updateChorusToggleAppearance();
   void updateReverbToggleAppearance();
   void updateDelayToggleAppearance();
 
@@ -162,6 +172,7 @@ private:
   void initializeTSSliders();
   void initializeCompSliders();
   void initializeBoostSliders();
+  void initializeChorusSliders();
   void initializeReverbSliders();
   void initializeDelaySliders();
   void initializeSliderAttachments();

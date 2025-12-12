@@ -9,6 +9,7 @@
 #include "pedals/TubeScreamer/TSProcessor.h"
 #include "pedals/Compressor/CompressorProcessor.h"
 #include "pedals/CleanBoost/CleanBoostProcessor.h"
+#include "pedals/Chorus/ChorusProcessor.h"
 #include "pedals/Reverb/ReverbProcessor.h"
 #include "pedals/Delay/DelayProcessor.h"
 #include "PresetManager/PresetManager.h"
@@ -83,6 +84,7 @@ private:
   TSProcessor tsProcessor;
   CompressorProcessor compressorProcessor;
   CleanBoostProcessor cleanBoostProcessor;
+  ChorusProcessor chorusProcessor;
   ReverbProcessor reverbProcessor;
   DelayProcessor delayProcessor;
 
@@ -112,6 +114,12 @@ private:
   // Clean Boost parameters
   std::atomic<float> *boostVolume;
   std::atomic<float> *boostEnabled;
+
+  // Chorus parameters
+  std::atomic<float> *chorusRate;
+  std::atomic<float> *chorusDepth;
+  std::atomic<float> *chorusMix;
+  std::atomic<float> *chorusEnabled;
 
   // Reverb parameters
   std::atomic<float> *reverbMix;

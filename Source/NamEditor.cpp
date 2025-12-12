@@ -24,9 +24,9 @@ NamEditor::NamEditor(NamJUCEAudioProcessor &p)
   // Load pedal button images for post-effects pedals
   pedalButtonOnPostEffects = juce::ImageFileFormat::loadFrom(
       BinaryData::KnobOnPostEffects_png, BinaryData::KnobOnPostEffects_pngSize);
-  pedalButtonOffPostEffects = juce::ImageFileFormat::loadFrom(
-      BinaryData::KnobOffPostEffects_png,
-      BinaryData::KnobOffPostEffects_pngSize);
+  pedalButtonOffPostEffects =
+      juce::ImageFileFormat::loadFrom(BinaryData::KnobOffPostEffects_png,
+                                      BinaryData::KnobOffPostEffects_pngSize);
 
   // Meters
   meterIn.setMeterSource(&audioProcessor.getMeterInSource());
@@ -69,6 +69,8 @@ NamEditor::NamEditor(NamJUCEAudioProcessor &p)
 
   initializeBoostSliders();
 
+  initializeChorusSliders();
+
   initializeReverbSliders();
 
   initializeDelaySliders();
@@ -83,6 +85,9 @@ NamEditor::NamEditor(NamJUCEAudioProcessor &p)
 
   // Update Boost toggle appearance to match initial state
   updateBoostToggleAppearance();
+
+  // Update Chorus toggle appearance to match initial state
+  updateChorusToggleAppearance();
 
   // Update Reverb toggle appearance to match initial state
   updateReverbToggleAppearance();
@@ -320,6 +325,12 @@ void NamEditor::setKnobVisibility() {
     sliders[PluginKnobs::BoostVolume]->setVisible(true);
     boostEnabledToggle->setVisible(true);
 
+    // Hide Chorus controls
+    sliders[PluginKnobs::ChorusRate]->setVisible(false);
+    sliders[PluginKnobs::ChorusDepth]->setVisible(false);
+    sliders[PluginKnobs::ChorusMix]->setVisible(false);
+    chorusEnabledToggle->setVisible(false);
+
     // Hide Reverb controls
     sliders[PluginKnobs::ReverbMix]->setVisible(false);
     sliders[PluginKnobs::ReverbTone]->setVisible(false);
@@ -357,6 +368,12 @@ void NamEditor::setKnobVisibility() {
     sliders[PluginKnobs::BoostVolume]->setVisible(false);
     boostEnabledToggle->setVisible(false);
 
+    // Hide Chorus controls
+    sliders[PluginKnobs::ChorusRate]->setVisible(false);
+    sliders[PluginKnobs::ChorusDepth]->setVisible(false);
+    sliders[PluginKnobs::ChorusMix]->setVisible(false);
+    chorusEnabledToggle->setVisible(false);
+
     // Hide Reverb controls
     sliders[PluginKnobs::ReverbMix]->setVisible(false);
     sliders[PluginKnobs::ReverbTone]->setVisible(false);
@@ -393,6 +410,12 @@ void NamEditor::setKnobVisibility() {
     // Hide Boost controls
     sliders[PluginKnobs::BoostVolume]->setVisible(false);
     boostEnabledToggle->setVisible(false);
+
+    // Show Chorus controls
+    sliders[PluginKnobs::ChorusRate]->setVisible(true);
+    sliders[PluginKnobs::ChorusDepth]->setVisible(true);
+    sliders[PluginKnobs::ChorusMix]->setVisible(true);
+    chorusEnabledToggle->setVisible(true);
 
     // Show Reverb controls
     sliders[PluginKnobs::ReverbMix]->setVisible(true);
@@ -712,6 +735,60 @@ void NamEditor::initializeBoostSliders() {
   boostEnabledToggle->setBounds(327, 433, 53, 53);
 }
 
+void NamEditor::initializeChorusSliders() {
+  const int knobSize = 52;
+
+  const int xStart = 157;
+  const int xOffsetMultiplier = 65;
+  const int yPosition = 255;
+
+  // Chorus slider IDs
+  const int chorusSliders[] = {PluginKnobs::ChorusRate,
+                               PluginKnobs::ChorusDepth,
+                               PluginKnobs::ChorusMix};
+
+  for (int i = 0; i < 3; ++i) {
+    auto &slider = sliders[chorusSliders[i]];
+
+    // Basic setup
+    slider.reset(new CustomSlider());
+    addAndMakeVisible(slider.get());
+
+    // Apply post-effects look and feel
+    slider->setLookAndFeel(&lnfPostEffects);
+    slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 80, 20);
+
+    // Position in row
+    slider->setBounds(xStart + (i * xOffsetMultiplier), yPosition, knobSize,
+                      knobSize);
+
+    slider->addListener(this);
+  }
+
+  // Chorus Enable toggle
+  chorusEnabledToggle = std::make_unique<juce::ImageButton>("Chorus Enable");
+  addAndMakeVisible(chorusEnabledToggle.get());
+
+  // Set up the button to act as a toggle button
+  chorusEnabledToggle->setClickingTogglesState(true);
+
+  // Use post-effects pedal button images
+  chorusEnabledToggle->setImages(
+      false, true, true, pedalButtonOffPostEffects, 1.0f,
+      juce::Colours::transparentBlack, // normal
+      pedalButtonOffPostEffects, 0.8f, juce::Colours::transparentBlack,  // over
+      pedalButtonOffPostEffects, 1.0f, juce::Colours::transparentBlack); // down
+
+  // Add onClick handler to update appearance when toggled
+  chorusEnabledToggle->onClick = [this]() { updateChorusToggleAppearance(); };
+
+  chorusEnabledToggle->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+
+  // Position below knobs (roughly centered between them)
+  chorusEnabledToggle->setBounds(221, 428, 52, 52);
+}
+
 void NamEditor::initializeReverbSliders() {
   const int knobSize = 52;
 
@@ -743,8 +820,7 @@ void NamEditor::initializeReverbSliders() {
   }
 
   // Reverb Enable toggle
-  reverbEnabledToggle =
-      std::make_unique<juce::ImageButton>("Reverb Enable");
+  reverbEnabledToggle = std::make_unique<juce::ImageButton>("Reverb Enable");
   addAndMakeVisible(reverbEnabledToggle.get());
 
   // Set up the button to act as a toggle button
@@ -753,7 +829,7 @@ void NamEditor::initializeReverbSliders() {
   // Use post-effects pedal button images
   reverbEnabledToggle->setImages(
       false, true, true, pedalButtonOffPostEffects, 1.0f,
-      juce::Colours::transparentBlack,                              // normal
+      juce::Colours::transparentBlack, // normal
       pedalButtonOffPostEffects, 0.8f, juce::Colours::transparentBlack,  // over
       pedalButtonOffPostEffects, 1.0f, juce::Colours::transparentBlack); // down
 
@@ -774,7 +850,8 @@ void NamEditor::initializeDelaySliders() {
   const int yPosition = 255;
 
   // Delay slider IDs
-  const int delaySliders[] = {PluginKnobs::DelayTime, PluginKnobs::DelayFeedback,
+  const int delaySliders[] = {PluginKnobs::DelayTime,
+                              PluginKnobs::DelayFeedback,
                               PluginKnobs::DelayMix};
 
   for (int i = 0; i < 3; ++i) {
@@ -797,8 +874,7 @@ void NamEditor::initializeDelaySliders() {
   }
 
   // Delay Enable toggle
-  delayEnabledToggle =
-      std::make_unique<juce::ImageButton>("Delay Enable");
+  delayEnabledToggle = std::make_unique<juce::ImageButton>("Delay Enable");
   addAndMakeVisible(delayEnabledToggle.get());
 
   // Set up the button to act as a toggle button
@@ -807,7 +883,7 @@ void NamEditor::initializeDelaySliders() {
   // Use post-effects pedal button images
   delayEnabledToggle->setImages(
       false, true, true, pedalButtonOffPostEffects, 1.0f,
-      juce::Colours::transparentBlack,                              // normal
+      juce::Colours::transparentBlack, // normal
       pedalButtonOffPostEffects, 0.8f, juce::Colours::transparentBlack,  // over
       pedalButtonOffPostEffects, 1.0f, juce::Colours::transparentBlack); // down
 
@@ -883,6 +959,30 @@ void NamEditor::updateBoostToggleAppearance() {
   }
 }
 
+void NamEditor::updateChorusToggleAppearance() {
+  // Update the button images based on toggle state
+  bool isToggled = chorusEnabledToggle->getToggleState();
+
+  if (isToggled) {
+    // Show ON image when enabled
+    chorusEnabledToggle->setImages(
+        false, true, true, pedalButtonOnPostEffects, 1.0f,
+        juce::Colours::transparentBlack, // normal
+        pedalButtonOnPostEffects, 1.0f, juce::Colours::transparentBlack, // over
+        pedalButtonOnPostEffects, 1.0f,
+        juce::Colours::transparentBlack); // down
+  } else {
+    // Show OFF image when disabled
+    chorusEnabledToggle->setImages(false, true, true, pedalButtonOffPostEffects,
+                                   1.0f,
+                                   juce::Colours::transparentBlack, // normal
+                                   pedalButtonOffPostEffects, 1.0f,
+                                   juce::Colours::transparentBlack, // over
+                                   pedalButtonOffPostEffects, 1.0f,
+                                   juce::Colours::transparentBlack); // down
+  }
+}
+
 void NamEditor::updateReverbToggleAppearance() {
   // Update the button images based on toggle state
   bool isToggled = reverbEnabledToggle->getToggleState();
@@ -891,16 +991,19 @@ void NamEditor::updateReverbToggleAppearance() {
     // Show ON image when enabled
     reverbEnabledToggle->setImages(
         false, true, true, pedalButtonOnPostEffects, 1.0f,
-        juce::Colours::transparentBlack,                             // normal
-        pedalButtonOnPostEffects, 1.0f, juce::Colours::transparentBlack,  // over
-        pedalButtonOnPostEffects, 1.0f, juce::Colours::transparentBlack); // down
+        juce::Colours::transparentBlack, // normal
+        pedalButtonOnPostEffects, 1.0f, juce::Colours::transparentBlack, // over
+        pedalButtonOnPostEffects, 1.0f,
+        juce::Colours::transparentBlack); // down
   } else {
     // Show OFF image when disabled
-    reverbEnabledToggle->setImages(
-        false, true, true, pedalButtonOffPostEffects, 1.0f,
-        juce::Colours::transparentBlack,                              // normal
-        pedalButtonOffPostEffects, 1.0f, juce::Colours::transparentBlack,  // over
-        pedalButtonOffPostEffects, 1.0f, juce::Colours::transparentBlack); // down
+    reverbEnabledToggle->setImages(false, true, true, pedalButtonOffPostEffects,
+                                   1.0f,
+                                   juce::Colours::transparentBlack, // normal
+                                   pedalButtonOffPostEffects, 1.0f,
+                                   juce::Colours::transparentBlack, // over
+                                   pedalButtonOffPostEffects, 1.0f,
+                                   juce::Colours::transparentBlack); // down
   }
 }
 
@@ -912,16 +1015,19 @@ void NamEditor::updateDelayToggleAppearance() {
     // Show ON image when enabled
     delayEnabledToggle->setImages(
         false, true, true, pedalButtonOnPostEffects, 1.0f,
-        juce::Colours::transparentBlack,                             // normal
-        pedalButtonOnPostEffects, 1.0f, juce::Colours::transparentBlack,  // over
-        pedalButtonOnPostEffects, 1.0f, juce::Colours::transparentBlack); // down
+        juce::Colours::transparentBlack, // normal
+        pedalButtonOnPostEffects, 1.0f, juce::Colours::transparentBlack, // over
+        pedalButtonOnPostEffects, 1.0f,
+        juce::Colours::transparentBlack); // down
   } else {
     // Show OFF image when disabled
-    delayEnabledToggle->setImages(
-        false, true, true, pedalButtonOffPostEffects, 1.0f,
-        juce::Colours::transparentBlack,                              // normal
-        pedalButtonOffPostEffects, 1.0f, juce::Colours::transparentBlack,  // over
-        pedalButtonOffPostEffects, 1.0f, juce::Colours::transparentBlack); // down
+    delayEnabledToggle->setImages(false, true, true, pedalButtonOffPostEffects,
+                                  1.0f,
+                                  juce::Colours::transparentBlack, // normal
+                                  pedalButtonOffPostEffects, 1.0f,
+                                  juce::Colours::transparentBlack, // over
+                                  pedalButtonOffPostEffects, 1.0f,
+                                  juce::Colours::transparentBlack); // down
   }
 }
 
@@ -963,4 +1069,9 @@ void NamEditor::initializeSliderAttachments() {
   delayEnabledAttachment =
       std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
           audioProcessor.apvts, "DELAY_ENABLED_ID", *delayEnabledToggle);
+
+  // Attach Chorus Enable toggle button
+  chorusEnabledAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          audioProcessor.apvts, "CHORUS_ENABLED_ID", *chorusEnabledToggle);
 }

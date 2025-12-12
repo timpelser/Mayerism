@@ -18,7 +18,10 @@ PRIVATE
     TopBarComponent.h
     DoublerProcessor.h
     pedals/Compressor/CompressorProcessor.h
+    pedals/CleanBoost/CleanBoostProcessor.h
+    pedals/Chorus/ChorusProcessor.h
     pedals/Reverb/ReverbProcessor.h
+    pedals/Delay/DelayProcessor.h
     pedals/TubeScreamer/TSProcessor.h
     pedals/TubeScreamer/dsp/ClippingStage.cpp
     pedals/TubeScreamer/dsp/ClippingStage.h

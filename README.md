@@ -43,6 +43,7 @@
 
 ### TODO
 
+- Limit range of NAM input and output to avoid digital clipping
 - Fix standalone audio settings to support mono input
 - make dark grey meter take up entire background space
 - Future: possibly add other scale options
