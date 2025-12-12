@@ -8,3 +8,10 @@ Installers/
 sdk/
 Scripts/venv
 venv
+.agent/
+.vscode/
+formatcode.sh
+AGENTS.md
+agents.md
+clang_format
+.clang-format
