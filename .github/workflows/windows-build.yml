@@ -39,7 +39,7 @@ jobs:
           $out = "output"
           if (Test-Path $out) { Remove-Item $out -Recurse -Force }
           New-Item -ItemType Directory -Path $out
-          $vst3 = "${{ env.BUILD_DIR }}\Release\${{ env.TARGET }}.vst3"
+          $vst3 = "${{ env.BUILD_DIR }}\Mayerism_artefacts\Release\VST3\${{ env.TARGET }}.vst3"
           if (-not (Test-Path $vst3)) {
             Write-Error "VST3 bundle not found: $vst3"
             exit 1
