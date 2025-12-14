@@ -62,7 +62,7 @@ jobs:
           hdiutil create -volname "Mayerism" -srcfolder output -ov -format UDRW -o "$temp_dmg"
           
           # Mount the DMG (read-write)
-          mount_point=$(hdiutil attach "$temp_dmg" -readwrite -noverify | grep "^/dev" | awk '{print $NF}')
+          mount_point=$(hdiutil attach "$temp_dmg" -readwrite -noverify -plist | grep -A1 "mount-point" | tail -1 | sed 's/<string>//; s/<\/string>//')
           
           # Set background image
           background_image="Assets/CraftLabs Mayerism Background.png"
