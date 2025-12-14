@@ -46,14 +46,6 @@ jobs:
           }
           Copy-Item $vst3 "$out\${{ env.TARGET }}.vst3" -Recurse
 
-      # 5️⃣ Zip the raw Windows VST3
-      - name: Zip raw VST3 bundle
-        shell: powershell
-        run: |
-          Compress-Archive `
-            -Path "output\${{ env.TARGET }}.vst3" `
-            -DestinationPath "${{ env.TARGET }}-windows.vst3.zip"
-
       # 6️⃣ Compile installer with Inno Setup Action
       - name: Build Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
@@ -68,7 +60,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Mayerism-Windows-VST3
-          path: Mayerism-windows.vst3.zip
+          path: output/${{ env.TARGET }}.vst3
 
       - name: Upload Installer
         uses: actions/upload-artifact@v4

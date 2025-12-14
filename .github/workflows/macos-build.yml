@@ -45,12 +45,6 @@ jobs:
           fi
           cp -R "$vst3" "$out/${{ env.TARGET }}.vst3"
 
-      # 5️⃣ Zip the raw macOS VST3
-      - name: Zip raw VST3 bundle
-        run: |
-          cd output
-          zip -r "../${{ env.TARGET }}-macos.vst3.zip" "${{ env.TARGET }}.vst3"
-
       # 6️⃣ Create DMG with background image
       - name: Create DMG installer
         run: |
@@ -87,7 +81,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Mayerism-macOS-VST3
-          path: Mayerism-macos.vst3.zip
+          path: output/${{ env.TARGET }}.vst3
 
       - name: Upload DMG Installer
         uses: actions/upload-artifact@v4
