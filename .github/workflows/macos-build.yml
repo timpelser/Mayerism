@@ -81,7 +81,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Mayerism-macOS-VST3
-          path: output/${{ env.TARGET }}.vst3
+          path: output
 
       - name: Upload DMG Installer
         uses: actions/upload-artifact@v4
