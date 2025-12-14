@@ -55,9 +55,6 @@ PRIVATE
     architecture.hpp
 )
 
-add_subdirectory(CustomStandaloneWindow)
-include_directories(CustomStandaloneWindow)
-
 add_subdirectory(PresetManager)
 include_directories(PresetManager)
 

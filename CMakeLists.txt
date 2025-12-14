@@ -127,7 +127,6 @@ target_compile_definitions(${PROJECT_NAME}
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_DISPLAY_SPLASH_SCREEN=0
         JUCE_MODAL_LOOPS_PERMITTED=1
-        JUCE_USE_CUSTOM_PLUGIN_STANDALONE_APP=1
         PLUG_VERSION="${PLUG_VERSION}"
     )     
 
@@ -197,4 +196,5 @@ else()
 		"$<$<CONFIG:RELWITHDEBINFO>:-Ofast>"
 		"$<$<CONFIG:RELEASE>:-Ofast>"
 	)
+
 endif()

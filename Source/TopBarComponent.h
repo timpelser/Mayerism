@@ -2,8 +2,7 @@
 // clang-format off
 #include "PluginProcessor.h"
 #include "MyLookAndFeel.h"
-// #include "juce_audio_plugin_client/Standalone/juce_StandaloneFilterWindow.h"
-#include <CustomStandaloneWindow/CustomStandaloneFilterWindow.h>
+#include <juce_audio_plugin_client/Standalone/juce_StandaloneFilterWindow.h>
 // clang-format on
 
 class TopBarComponent : public juce::AudioProcessorEditor,
