@@ -18,4 +18,4 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 ; copy everything inside the .vst3 bundle to the VST3 directory and ensure the folder is created
-Source: "output\Mayerism.vst3"; DestDir: "{commoncf}\VST3"; Flags: ignoreversion
+Source: "output\Mayerism.vst3\*"; DestDir: "{commoncf}\VST3\Mayerism.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs

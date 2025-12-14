@@ -39,12 +39,12 @@ jobs:
           $out = "output"
           if (Test-Path $out) { Remove-Item $out -Recurse -Force }
           New-Item -ItemType Directory -Path $out
-          $vst3_binary = "${{ env.BUILD_DIR }}\Mayerism_artefacts\Release\VST3\${{ env.TARGET }}.vst3\Contents\x86_64-win\${{ env.TARGET }}.vst3"
-          if (-not (Test-Path $vst3_binary)) {
-            Write-Error "VST3 binary not found: $vst3_binary"
+          $vst3 = "${{ env.BUILD_DIR }}\Mayerism_artefacts\Release\VST3\${{ env.TARGET }}.vst3"
+          if (-not (Test-Path $vst3)) {
+            Write-Error "VST3 bundle not found: $vst3"
             exit 1
           }
-          Copy-Item $vst3_binary "$out\${{ env.TARGET }}.vst3"
+          Copy-Item $vst3 "$out\${{ env.TARGET }}.vst3" -Recurse
 
       # 6️⃣ Compile installer with Inno Setup Action
       - name: Build Installer
