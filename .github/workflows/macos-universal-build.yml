@@ -45,6 +45,10 @@ jobs:
           fi
           cp -R "$vst3" "$out/${{ env.TARGET }}.vst3"
 
+      # 5️⃣ Ad-hoc Sign VST3 (Required for ARM64)
+      - name: Ad-hoc Sign VST3
+        run: codesign --force --deep -s - output/${{ env.TARGET }}.vst3
+
       # 6️⃣ Create DMG with background image
       - name: Create DMG installer
         run: |
