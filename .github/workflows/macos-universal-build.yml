@@ -107,7 +107,7 @@ jobs:
 
           create-dmg \
             --volname "Mayerism" \
-            --background "Assets/DMG Background.png" \
+            --background "Assets/DMG Background@2x.png" \
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 100 \
