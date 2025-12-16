@@ -39,6 +39,11 @@ jobs:
           rm -rf "$out"
           mkdir -p "$out"
           vst3="${{ env.BUILD_DIR }}/Mayerism_artefacts/Release/VST3/${{ env.TARGET }}.vst3"
+          if [ ! -d "$vst3" ]; then
+            echo "Error: VST3 bundle not found: $vst3"
+            exit 1
+          fi
+          cp -R "$vst3" "$out/${{ env.TARGET }}.vst3"
       # 5️⃣ Import Signing Certificate
       - name: Import Signing Certificate
         env:
