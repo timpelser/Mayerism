@@ -81,26 +81,41 @@ jobs:
           # The -f (force) -s (sign) --deep (recursive) --options runtime (Hardened Runtime) --timestamp (Required for notarization)
           codesign --force --deep --options runtime --timestamp --sign "$SIGNING_IDENTITY" "output/${{ env.TARGET }}.vst3"
 
-      # 7️⃣ Create DMG installer
+      # 7️⃣ Create DMG installer (Professional)
       - name: Create DMG installer
         run: |
-          temp_dmg="temp.dmg"
+          # Install create-dmg utility
+          brew install create-dmg
+
           final_dmg="${{ env.TARGET }}-macOS-Universal-Installer.dmg"
           
-          hdiutil create -volname "Mayerism" -srcfolder output -ov -format UDRW -o "$temp_dmg"
-          hdiutil attach "$temp_dmg" -readwrite -noverify
-          mount_point="/Volumes/Mayerism"
+          # Clean up previous attempts
+          rm -f "$final_dmg"
+
+          # Use create-dmg to build the installer
+          # --volname: Name of the mounted volume
+          # --background: Path to your BG image
+          # --window-pos: Position on screen when opened
+          # --window-size: Size of the window (should match BG image size)
+          # --icon-size: Size of icons
+          # --icon: Position of the plugin file (Name, X, Y)
+          # --app-drop-link: Position of the VST3 folder drop target (X, Y) relative to the target path
+          # output/Mayerism.vst3: The source file to put in the DMG
           
-          background_image="Assets/CraftLabs Mayerism Background.png"
-          if [ -f "$background_image" ]; then
-            mkdir -p "$mount_point/.background"
-            cp "$background_image" "$mount_point/.background/background.png"
-          fi
-          
-          ln -s "/Library/Audio/Plug-Ins/VST3" "$mount_point/VST3"
-          hdiutil eject "$mount_point"
-          hdiutil convert "$temp_dmg" -format UDZO -o "$final_dmg"
-          rm "$temp_dmg"
+          # Prepare the custom symlink for the installer
+          ln -s /Library/Audio/Plug-Ins/VST3 output/VST3
+
+          create-dmg \
+            --volname "Mayerism" \
+            --background "Assets/DMG Background.png" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "${{ env.TARGET }}.vst3" 131 197 \
+            --icon "VST3" 468 197 \
+            --hide-extension "VST3" \
+            "$final_dmg" \
+            "output/"
 
       # 8️⃣ Sign the DMG itself
       - name: Sign DMG
