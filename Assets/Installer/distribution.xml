@@ -27,6 +27,6 @@
     </choice>
 
     <!-- Package References -->
-    <pkg-ref id="com.craftlabs.mayerism.vst3"/>
-    <pkg-ref id="com.craftlabs.mayerism.au"/>
+    <pkg-ref id="com.craftlabs.mayerism.vst3">Mayerism-VST3.pkg</pkg-ref>
+    <pkg-ref id="com.craftlabs.mayerism.au">Mayerism-AU.pkg</pkg-ref>
 </installer-gui-script>

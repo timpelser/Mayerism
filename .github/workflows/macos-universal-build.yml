@@ -120,7 +120,7 @@ jobs:
                    --identifier "com.craftlabs.mayerism.vst3" \
                    --version "0.0.1" \
                    --sign "$INST_IDENTITY" \
-                   "packages/com.craftlabs.mayerism.vst3.pkg"
+                   "packages/Mayerism-VST3.pkg"
 
           # 8.2 AU Staging
           mkdir -p staging_au/Library/Audio/Plug-Ins/Components
@@ -132,7 +132,7 @@ jobs:
                    --identifier "com.craftlabs.mayerism.au" \
                    --version "0.0.1" \
                    --sign "$INST_IDENTITY" \
-                   "packages/com.craftlabs.mayerism.au.pkg"
+                   "packages/Mayerism-AU.pkg"
           
           echo "Intermediate Packages Size:"
           du -sh packages/*
