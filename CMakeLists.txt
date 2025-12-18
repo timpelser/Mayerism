@@ -56,8 +56,8 @@ juce_add_plugin(${PROJECT_NAME}
     # IS_MIDI_EFFECT TRUE/FALSE         
     # EDITOR_WANTS_KEYBOARD_FOCUS TRUE/FALSE
     # COPY_PLUGIN_AFTER_BUILD TRUE  
-    PLUGIN_MANUFACTURER_CODE TPCLM             
-    PLUGIN_CODE CLM01
+    PLUGIN_MANUFACTURER_CODE TPCL             
+    PLUGIN_CODE CLM1
     FORMATS AU VST3 Standalone                  
     PRODUCT_NAME "Mayerism"
     JucePlugin_Manufacturer "CraftLabs"

@@ -27,7 +27,7 @@ jobs:
 
       # 3️⃣ Configure + Build
       - name: Configure CMake (Release, Universal)
-        run: cmake -S . -B ${{ env.BUILD_DIR }} -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+        run: cmake -S . -B ${{ env.BUILD_DIR }} -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path)
 
       - name: Build All
         run: cmake --build ${{ env.BUILD_DIR }} --config Release
