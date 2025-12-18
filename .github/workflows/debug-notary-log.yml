@@ -9,7 +9,7 @@ jobs:
     steps:
       - name: Fetch Notary Log
         run: |
-          xcrun notarytool log "f89b442f-33c5-4ccf-a60f-c96b458511ca" \
+          xcrun notarytool log "6ed69590-a46e-4bed-aabb-2c275a856a52" \
             --apple-id "${{ secrets.AC_USERNAME }}" \
             --password "${{ secrets.AC_PASSWORD }}" \
             --team-id "${{ secrets.AC_TEAM_ID }}"
