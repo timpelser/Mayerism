@@ -167,6 +167,7 @@ jobs:
             --apple-id "${{ secrets.AC_USERNAME }}" \
             --password "${{ secrets.AC_PASSWORD }}" \
             --team-id "${{ secrets.AC_TEAM_ID }}" \
+            --verbose \
             --wait
 
       # 1️⃣2️⃣ Staple Ticket

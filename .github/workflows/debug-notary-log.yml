@@ -7,9 +7,9 @@ jobs:
   get-log:
     runs-on: macos-latest
     steps:
-      - name: Fetch Notary Log
+      - name: Fetch Notary Status
         run: |
-          xcrun notarytool log "c7ff1863-9a83-4d70-aa0b-c60ce8c9e77c" \
+          xcrun notarytool info "c7ff1863-9a83-4d70-aa0b-c60ce8c9e77c" \
             --apple-id "${{ secrets.AC_USERNAME }}" \
             --password "${{ secrets.AC_PASSWORD }}" \
             --team-id "${{ secrets.AC_TEAM_ID }}"
