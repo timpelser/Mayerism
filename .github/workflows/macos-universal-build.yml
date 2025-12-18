@@ -136,36 +136,14 @@ jobs:
                        --timestamp \
                        "$FINAL_PKG"
 
-      # 9️⃣ Notarize Installer (With Logging)
+      # 9️⃣ Notarize Installer
       - name: Notarize Installer
         run: |
-          # Submit and capture output
           xcrun notarytool submit "${{ env.TARGET }}-macOS-Universal-Installer.pkg" \
             --apple-id "${{ secrets.AC_USERNAME }}" \
             --password "${{ secrets.AC_PASSWORD }}" \
             --team-id "${{ secrets.AC_TEAM_ID }}" \
-            --wait --output-format json > notary_output.json 2>&1 || true
-
-          # Print output for debugging
-          cat notary_output.json
-          
-          # Check status
-          STATUS=$(cat notary_output.json | grep -o '"status": "[^"]*"' | cut -d'"' -f4)
-          ID=$(cat notary_output.json | grep -o '"id": "[^"]*"' | cut -d'"' -f4)
-
-          echo "Submission ID: $ID"
-          echo "Status: $STATUS"
-
-          if [ "$STATUS" != "Accepted" ]; then
-            echo "❌ Notarization Failed! Fetching logs..."
-            xcrun notarytool log "$ID" \
-              --apple-id "${{ secrets.AC_USERNAME }}" \
-              --password "${{ secrets.AC_PASSWORD }}" \
-              --team-id "${{ secrets.AC_TEAM_ID }}"
-            exit 1
-          else
-             echo "✅ Notarization Accepted!"
-          fi
+            --wait
 
       # 🔟 Staple Ticket
       - name: Staple Ticket
