@@ -60,10 +60,10 @@ jobs:
           security import $CERT_APP_PATH -k $KEYCHAIN_PATH -P "$P12_PASSWORD" -T /usr/bin/codesign
           
           # Import Installer Cert
-          security import $CERT_INST_PATH -k $KEYCHAIN_PATH -P "$P12_PASSWORD" -T /usr/bin/productbuild
+          security import $CERT_INST_PATH -k $KEYCHAIN_PATH -P "$P12_PASSWORD" -T /usr/bin/productbuild -T /usr/bin/pkgbuild
 
           # Set permissions
-          security set-key-partition-list -S apple-tool:,apple:,codesign:,productbuild: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple:,codesign:,productbuild:,pkgbuild: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security list-keychains -d user -s $KEYCHAIN_PATH
 
       # 6️⃣ Code Sign Components (VST3 and AU)
