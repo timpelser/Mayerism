@@ -104,25 +104,27 @@ jobs:
           echo "Verifying AU Signature..."
           codesign -dv --verbose=4 "${{ env.BUILD_DIR }}/Mayerism_artefacts/Release/AU/${{ env.TARGET }}.component"
 
-      # 8️⃣ Build Signed Intermediate Component Packages
+      # 8️⃣ Build Signed Intermediate Component Packages (Staging Approach)
       - name: Build Component Packages
         run: |
           mkdir -p packages
           INST_IDENTITY="Developer ID Installer"
           
-          # VST3 Package
-          vst3_src="${{ env.BUILD_DIR }}/Mayerism_artefacts/Release/VST3/${{ env.TARGET }}.vst3"
-          pkgbuild --component "$vst3_src" \
-                   --install-location "/Library/Audio/Plug-Ins/VST3" \
+          # 8.1 VST3 Staging
+          mkdir -p staging_vst3/Library/Audio/Plug-Ins/VST3
+          cp -R "${{ env.BUILD_DIR }}/Mayerism_artefacts/Release/VST3/${{ env.TARGET }}.vst3" staging_vst3/Library/Audio/Plug-Ins/VST3/
+          
+          pkgbuild --root staging_vst3 \
                    --identifier "com.craftlabs.mayerism.vst3" \
                    --version "0.0.1" \
                    --sign "$INST_IDENTITY" \
                    "packages/Mayerism-VST3.pkg"
 
-          # AU Package
-          au_src="${{ env.BUILD_DIR }}/Mayerism_artefacts/Release/AU/${{ env.TARGET }}.component"
-          pkgbuild --component "$au_src" \
-                   --install-location "/Library/Audio/Plug-Ins/Components" \
+          # 8.2 AU Staging
+          mkdir -p staging_au/Library/Audio/Plug-Ins/Components
+          cp -R "${{ env.BUILD_DIR }}/Mayerism_artefacts/Release/AU/${{ env.TARGET }}.component" staging_au/Library/Audio/Plug-Ins/Components/
+          
+          pkgbuild --root staging_au \
                    --identifier "com.craftlabs.mayerism.au" \
                    --version "0.0.1" \
                    --sign "$INST_IDENTITY" \
@@ -131,7 +133,6 @@ jobs:
       # 9️⃣ Build Final Product Installer
       - name: Build Product Installer
         run: |
-          # Identity for Installer Signing
           INST_IDENTITY="Developer ID Installer"
           FINAL_PKG="${{ env.TARGET }}-macOS-Universal-Installer.pkg"
           
@@ -142,23 +143,30 @@ jobs:
                        --timestamp \
                        "$FINAL_PKG"
 
-      # 🔟 Notarize Installer (With Logging)
+      # 🔟 Verify PKG Locally
+      - name: Verify PKG
+        run: |
+          pkgutil --check-signature "${{ env.TARGET }}-macOS-Universal-Installer.pkg"
+          # List files to verify structure
+          pkgutil --payload-files "${{ env.TARGET }}-macOS-Universal-Installer.pkg"
+
+      # 1️⃣1️⃣ Notarize Installer
       - name: Notarize Installer
         run: |
-          # Submit and capture output (Simple format)
           xcrun notarytool submit "${{ env.TARGET }}-macOS-Universal-Installer.pkg" \
             --apple-id "${{ secrets.AC_USERNAME }}" \
             --password "${{ secrets.AC_PASSWORD }}" \
             --team-id "${{ secrets.AC_TEAM_ID }}" \
             --wait
 
-      # 🔟 Staple Ticket
+      # 1️⃣2️⃣ Staple Ticket
       - name: Staple Ticket
         run: |
           xcrun stapler staple "${{ env.TARGET }}-macOS-Universal-Installer.pkg"
 
-      # 1️⃣1️⃣ Upload Artifacts
+      # 1️⃣3️⃣ Upload Artifacts (Always)
       - name: Upload Installer
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Mayerism-macOS-Universal-Installer
