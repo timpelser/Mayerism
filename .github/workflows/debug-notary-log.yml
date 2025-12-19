@@ -9,7 +9,7 @@ jobs:
     steps:
       - name: Fetch Notary Status
         run: |
-          xcrun notarytool info "c7ff1863-9a83-4d70-aa0b-c60ce8c9e77c" \
+          xcrun notarytool info "6f20faf0-9001-4ae5-9346-1728846e6ac5" \
             --apple-id "${{ secrets.AC_USERNAME }}" \
             --password "${{ secrets.AC_PASSWORD }}" \
             --team-id "${{ secrets.AC_TEAM_ID }}"
