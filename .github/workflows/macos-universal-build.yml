@@ -78,8 +78,23 @@ jobs:
           # VST3
           vst3_src="${{ env.BUILD_DIR }}/Mayerism_artefacts/Release/VST3/${{ env.TARGET }}.vst3"
           if [ -d "$vst3_src" ]; then
-             echo "Signing VST3..."
-             codesign --force --deep --options runtime --entitlements "$ENTITLEMENTS" --timestamp --sign "$IDENTITY" "$vst3_src"
+             echo "Signing VST3 bundle..."
+             
+             # Sign any embedded frameworks or dylibs first
+             find "$vst3_src" -type f \( -name "*.dylib" -o -name "*.framework" \) | while read lib; do
+               echo "  Signing library: $lib"
+               codesign --force --options runtime --timestamp --sign "$IDENTITY" "$lib" || true
+             done
+             
+             # Sign the main executable
+             if [ -f "$vst3_src/Contents/MacOS/${{ env.TARGET }}" ]; then
+               echo "  Signing VST3 executable"
+               codesign --force --options runtime --entitlements "$ENTITLEMENTS" --timestamp --sign "$IDENTITY" "$vst3_src/Contents/MacOS/${{ env.TARGET }}"
+             fi
+             
+             # Sign the bundle itself
+             echo "  Signing VST3 bundle"
+             codesign --force --options runtime --entitlements "$ENTITLEMENTS" --timestamp --sign "$IDENTITY" "$vst3_src"
           else
              echo "⚠️ Warning: VST3 not found at $vst3_src"
           fi
@@ -87,8 +102,23 @@ jobs:
           # AU (Component)
           au_src="${{ env.BUILD_DIR }}/Mayerism_artefacts/Release/AU/${{ env.TARGET }}.component"
           if [ -d "$au_src" ]; then
-             echo "Signing AU..."
-             codesign --force --deep --options runtime --entitlements "$ENTITLEMENTS" --timestamp --sign "$IDENTITY" "$au_src"
+             echo "Signing AU bundle..."
+             
+             # Sign any embedded frameworks or dylibs first
+             find "$au_src" -type f \( -name "*.dylib" -o -name "*.framework" \) | while read lib; do
+               echo "  Signing library: $lib"
+               codesign --force --options runtime --timestamp --sign "$IDENTITY" "$lib" || true
+             done
+             
+             # Sign the main executable
+             if [ -f "$au_src/Contents/MacOS/${{ env.TARGET }}" ]; then
+               echo "  Signing AU executable"
+               codesign --force --options runtime --entitlements "$ENTITLEMENTS" --timestamp --sign "$IDENTITY" "$au_src/Contents/MacOS/${{ env.TARGET }}"
+             fi
+             
+             # Sign the bundle itself
+             echo "  Signing AU bundle"
+             codesign --force --options runtime --entitlements "$ENTITLEMENTS" --timestamp --sign "$IDENTITY" "$au_src"
           else
              echo "⚠️ Warning: AU not found at $au_src - Did you build it?"
              exit 1 
@@ -99,9 +129,11 @@ jobs:
         run: |
           echo "Verifying VST3 Signature..."
           codesign -dv --verbose=4 "${{ env.BUILD_DIR }}/Mayerism_artefacts/Release/VST3/${{ env.TARGET }}.vst3"
+          codesign --verify --strict --verbose=2 "${{ env.BUILD_DIR }}/Mayerism_artefacts/Release/VST3/${{ env.TARGET }}.vst3"
           
           echo "Verifying AU Signature..."
           codesign -dv --verbose=4 "${{ env.BUILD_DIR }}/Mayerism_artefacts/Release/AU/${{ env.TARGET }}.component"
+          codesign --verify --strict --verbose=2 "${{ env.BUILD_DIR }}/Mayerism_artefacts/Release/AU/${{ env.TARGET }}.component"
 
       # 8️⃣ Build Signed Intermediate Component Packages (Staging Approach)
       - name: Build Component Packages
@@ -166,7 +198,6 @@ jobs:
             --apple-id "${{ secrets.AC_USERNAME }}" \
             --password "${{ secrets.AC_PASSWORD }}" \
             --team-id "${{ secrets.AC_TEAM_ID }}" \
-            --verbose \
             --wait
 
       # 1️⃣2️⃣ Staple Ticket
