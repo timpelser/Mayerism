@@ -1,4 +1,5 @@
 #include "PresetManagerComponent.h"
+#include <functional>
 
 PresetManagerComponent::PresetManagerComponent(
     PresetManager &pm, std::function<void()> &&updateFunction)
@@ -98,9 +99,22 @@ void PresetManagerComponent::loadComboBox() {
 
   const auto allPresets = presetManager.getAllPresets();
   const auto currentPreset = presetManager.getCurrentPreset();
-  presetComboBox.addItemList(presetManager.getAllPresets(), 1);
-  presetComboBox.setSelectedItemIndex(allPresets.indexOf(currentPreset),
-                                      juce::dontSendNotification);
+
+  // Add "Default" and a separator
+  presetComboBox.addItem("Default", 1);
+  presetComboBox.addSeparator();
+
+  // Add the rest of the presets
+  for (int i = 1; i < allPresets.size(); ++i) {
+    presetComboBox.addItem(allPresets[i], i + 1);
+  }
+
+  // Select the current preset
+  const int index = allPresets.indexOf(currentPreset);
+  if (index >= 0) {
+    // If it's "Default" (index 0), its ID is 1. Otherwise, its ID is index + 1.
+    presetComboBox.setSelectedId(index + 1, juce::dontSendNotification);
+  }
 }
 
 void PresetManagerComponent::setColour(juce::Colour colourToUse, float alpha) {
@@ -133,10 +147,9 @@ void PresetManagerComponent::parameterChanged() {}
 
 void PresetManagerComponent::comboBoxChanged(
     juce::ComboBox *comboBoxThatHasChanged) {
-  presetName.setText(comboBoxThatHasChanged->getItemText(
-      comboBoxThatHasChanged->getSelectedId() - 1));
-  presetManager.loadPreset(comboBoxThatHasChanged->getItemText(
-      comboBoxThatHasChanged->getSelectedItemIndex()));
+  const auto selectedText = comboBoxThatHasChanged->getText();
+  presetName.setText(selectedText);
+  presetManager.loadPreset(selectedText);
 
   parentUpdater();
 }

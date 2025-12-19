@@ -9,8 +9,9 @@ const juce::File PresetManager::defaultPresetDirectory{
 const juce::String PresetManager::presetExtension{"nampreset"};
 const juce::String PresetManager::presetNameProperty{"presetName"};
 
-PresetManager::PresetManager(juce::AudioProcessorValueTreeState &apvts)
-    : apvts(apvts) {
+PresetManager::PresetManager(juce::AudioProcessorValueTreeState &apvts,
+                             std::function<void()> onReset)
+    : apvts(apvts), onResetToDefault(std::move(onReset)) {
   if (!defaultPresetDirectory.exists()) {
     const auto result = defaultPresetDirectory.createDirectory();
     if (result.failed()) {
@@ -46,7 +47,7 @@ void PresetManager::savePreset(const juce::String &presetName) {
 }
 
 void PresetManager::deletePreset(const juce::String &presetName) {
-  if (presetName.isEmpty())
+  if (presetName.isEmpty() || presetName == "Default")
     return;
 
   const auto presetFile =
@@ -70,6 +71,13 @@ void PresetManager::loadPreset(const juce::String &presetName) {
   if (presetName.isEmpty())
     return;
 
+  if (presetName == "Default") {
+    if (onResetToDefault)
+      onResetToDefault();
+    currentPreset.setValue("Default");
+    return;
+  }
+
   const auto presetFile =
       defaultPresetDirectory.getChildFile(presetName + "." + presetExtension);
   if (!presetFile.existsAsFile()) {
@@ -88,6 +96,8 @@ void PresetManager::loadPreset(const juce::String &presetName) {
 
 juce::StringArray PresetManager::getAllPresets() const {
   juce::StringArray presets;
+  presets.add("Default");
+
   const auto fileArray = defaultPresetDirectory.findChildFiles(
       juce::File::TypesOfFileToFind::findFiles, false, "*" + presetExtension);
 

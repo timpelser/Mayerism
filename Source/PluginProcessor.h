@@ -71,6 +71,7 @@ public:
   PresetManager &getPresetManager() { return presetManager; };
 
   void loadFromPreset(juce::String modelPath, juce::String irPath);
+  void applyDefaultSettings();
 
   bool isNamModelLoaded() const { return namModelLoaded; }
 

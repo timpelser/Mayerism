@@ -21,9 +21,55 @@ NamJUCEAudioProcessor::NamJUCEAudioProcessor()
               .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
               ),
-      apvts(*this, nullptr, "Params", createParameters()), presetManager(apvts)
+      apvts(*this, nullptr, "Params", createParameters()),
+      presetManager(apvts, [this]() { applyDefaultSettings(); })
 #endif
 {
+  // Hook independent input/output gain parameters
+  pluginInputGain = apvts.getRawParameterValue("PLUGIN_INPUT_ID");
+  pluginOutputGain = apvts.getRawParameterValue("PLUGIN_OUTPUT_ID");
+
+  // Hook Tube Screamer parameters
+  tsDrive = apvts.getRawParameterValue("TS_DRIVE_ID");
+  tsTone = apvts.getRawParameterValue("TS_TONE_ID");
+  tsLevel = apvts.getRawParameterValue("TS_LEVEL_ID");
+  tsEnabled = apvts.getRawParameterValue("TS_ENABLED_ID");
+
+  // Hook Klon Centaur parameters
+  klonGain = apvts.getRawParameterValue("KLON_GAIN_ID");
+  klonTreble = apvts.getRawParameterValue("KLON_TREBLE_ID");
+  klonLevel = apvts.getRawParameterValue("KLON_LEVEL_ID");
+  klonEnabled = apvts.getRawParameterValue("KLON_ENABLED_ID");
+
+  // Hook Compressor parameters
+  compVolume = apvts.getRawParameterValue("COMP_VOLUME_ID");
+  compAttack = apvts.getRawParameterValue("COMP_ATTACK_ID");
+  compSustain = apvts.getRawParameterValue("COMP_SUSTAIN_ID");
+  compEnabled = apvts.getRawParameterValue("COMP_ENABLED_ID");
+
+  // Hook Clean Boost parameters
+  boostVolume = apvts.getRawParameterValue("BOOST_VOLUME_ID");
+  boostEnabled = apvts.getRawParameterValue("BOOST_ENABLED_ID");
+
+  // Hook Chorus parameters
+  chorusRate = apvts.getRawParameterValue("CHORUS_RATE_ID");
+  chorusDepth = apvts.getRawParameterValue("CHORUS_DEPTH_ID");
+  chorusMix = apvts.getRawParameterValue("CHORUS_MIX_ID");
+  chorusEnabled = apvts.getRawParameterValue("CHORUS_ENABLED_ID");
+
+  // Hook Reverb parameters
+  reverbMix = apvts.getRawParameterValue("REVERB_MIX_ID");
+  reverbTone = apvts.getRawParameterValue("REVERB_TONE_ID");
+  reverbSize = apvts.getRawParameterValue("REVERB_SIZE_ID");
+  reverbEnabled = apvts.getRawParameterValue("REVERB_ENABLED_ID");
+
+  // Hook Delay parameters
+  delayTime = apvts.getRawParameterValue("DELAY_TIME_ID");
+  delayFeedback = apvts.getRawParameterValue("DELAY_FEEDBACK_ID");
+  delayMix = apvts.getRawParameterValue("DELAY_MIX_ID");
+  delayEnabled = apvts.getRawParameterValue("DELAY_ENABLED_ID");
+
+  presetManager.loadPreset("Default");
 }
 
 NamJUCEAudioProcessor::~NamJUCEAudioProcessor() {}
@@ -95,49 +141,7 @@ void NamJUCEAudioProcessor::prepareToPlay(double sampleRate,
   myNAM.prepare(spec);
   myNAM.hookParameters(apvts);
 
-  // Hook independent input/output gain parameters
-  pluginInputGain = apvts.getRawParameterValue("PLUGIN_INPUT_ID");
-  pluginOutputGain = apvts.getRawParameterValue("PLUGIN_OUTPUT_ID");
-
-  // Hook Tube Screamer parameters
-  tsDrive = apvts.getRawParameterValue("TS_DRIVE_ID");
-  tsTone = apvts.getRawParameterValue("TS_TONE_ID");
-  tsLevel = apvts.getRawParameterValue("TS_LEVEL_ID");
-  tsEnabled = apvts.getRawParameterValue("TS_ENABLED_ID");
-
-  // Hook Klon Centaur parameters
-  klonGain = apvts.getRawParameterValue("KLON_GAIN_ID");
-  klonTreble = apvts.getRawParameterValue("KLON_TREBLE_ID");
-  klonLevel = apvts.getRawParameterValue("KLON_LEVEL_ID");
-  klonEnabled = apvts.getRawParameterValue("KLON_ENABLED_ID");
-
-  // Hook Compressor parameters
-  compVolume = apvts.getRawParameterValue("COMP_VOLUME_ID");
-  compAttack = apvts.getRawParameterValue("COMP_ATTACK_ID");
-  compSustain = apvts.getRawParameterValue("COMP_SUSTAIN_ID");
-  compEnabled = apvts.getRawParameterValue("COMP_ENABLED_ID");
-
-  // Hook Clean Boost parameters
-  boostVolume = apvts.getRawParameterValue("BOOST_VOLUME_ID");
-  boostEnabled = apvts.getRawParameterValue("BOOST_ENABLED_ID");
-
-  // Hook Chorus parameters
-  chorusRate = apvts.getRawParameterValue("CHORUS_RATE_ID");
-  chorusDepth = apvts.getRawParameterValue("CHORUS_DEPTH_ID");
-  chorusMix = apvts.getRawParameterValue("CHORUS_MIX_ID");
-  chorusEnabled = apvts.getRawParameterValue("CHORUS_ENABLED_ID");
-
-  // Hook Reverb parameters
-  reverbMix = apvts.getRawParameterValue("REVERB_MIX_ID");
-  reverbTone = apvts.getRawParameterValue("REVERB_TONE_ID");
-  reverbSize = apvts.getRawParameterValue("REVERB_SIZE_ID");
-  reverbEnabled = apvts.getRawParameterValue("REVERB_ENABLED_ID");
-
-  // Hook Delay parameters
-  delayTime = apvts.getRawParameterValue("DELAY_TIME_ID");
-  delayFeedback = apvts.getRawParameterValue("DELAY_FEEDBACK_ID");
-  delayMix = apvts.getRawParameterValue("DELAY_MIX_ID");
-  delayEnabled = apvts.getRawParameterValue("DELAY_ENABLED_ID");
+  // Parameters are now hooked in the constructor to allow startup defaults
 
   doubler.prepare(spec);
 
@@ -419,6 +423,71 @@ NamJUCEAudioProcessor::createParameters() {
 
 bool NamJUCEAudioProcessor::supportsDoublePrecisionProcessing() const {
   return supportsDouble;
+}
+
+void NamJUCEAudioProcessor::applyDefaultSettings() {
+  auto setParam = [this](juce::String id, float value) {
+    if (auto *param = dynamic_cast<juce::RangedAudioParameter *>(
+            apvts.getParameter(id))) {
+      param->setValueNotifyingHost(
+          param->getNormalisableRange().convertTo0to1(value));
+    }
+  };
+
+  // --- Perfect Sound Defaults ---
+
+  // Compressor: Off
+  setParam("COMP_VOLUME_ID", 5.0f);
+  setParam("COMP_ATTACK_ID", 26.38f);
+  setParam("COMP_SUSTAIN_ID", 263.75f);
+  setParam("COMP_ENABLED_ID", 0.0f);
+
+  // Clean Boost
+  setParam("BOOST_VOLUME_ID", 5.0f);
+  setParam("BOOST_ENABLED_ID", 1.0f);
+
+  // Tube Screamer: Off
+  setParam("TS_DRIVE_ID", 5.0f);
+  setParam("TS_TONE_ID", 5.0f);
+  setParam("TS_LEVEL_ID", 5.0f);
+  setParam("TS_ENABLED_ID", 0.0f);
+
+  // Klon: Off
+  setParam("KLON_GAIN_ID", 5.0f);
+  setParam("KLON_TREBLE_ID", 5.0f);
+  setParam("KLON_LEVEL_ID", 5.0f);
+  setParam("KLON_ENABLED_ID", 0.0f);
+
+  // Chorus: Off
+  setParam("CHORUS_RATE_ID", 1.6f);
+  setParam("CHORUS_DEPTH_ID", 0.03f);
+  setParam("CHORUS_MIX_ID", 50.0f);
+  setParam("CHORUS_ENABLED_ID", 0.0f);
+
+  // Delay
+  setParam("DELAY_TIME_ID", 205.55f);
+  setParam("DELAY_FEEDBACK_ID", 0.2f);
+  setParam("DELAY_MIX_ID", 0.17f);
+  setParam("DELAY_ENABLED_ID", 1.0f);
+
+  // Reverb
+  setParam("REVERB_MIX_ID", 2.86f);
+  setParam("REVERB_TONE_ID", 6.59f);
+  setParam("REVERB_SIZE_ID", 2.76f);
+  setParam("REVERB_ENABLED_ID", 1.0f);
+
+  // AMP
+  setParam("INPUT_ID", -1.68f);
+  setParam("BASS_ID", 5.67f);
+  setParam("MIDDLE_ID", 4.24f);
+  setParam("TREBLE_ID", 5.55f);
+  setParam("OUTPUT_ID", -1.51f);
+
+  // NOISEGATE, DOUBLER, PLUGIN_INPUT and PLUGIN_OUTPUT
+  setParam("NGATE_ID", -80.0f);
+  setParam("DOUBLER_ID", 0.0f);
+  setParam("PLUGIN_INPUT_ID", 0.0f);
+  setParam("PLUGIN_OUTPUT_ID", 0.0f);
 }
 
 //==============================================================================
