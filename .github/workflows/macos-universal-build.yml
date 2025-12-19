@@ -69,17 +69,17 @@ jobs:
       # 6️⃣ Code Sign Components (VST3 and AU)
       - name: Code Sign Components
         run: |
-          # Sign all built targets found in Release
-          # Note: We sign the SOURCE files in BUILD_DIR before packaging
-          # We check for both VST3 and Component (AU)
-          
           IDENTITY="Developer ID Application"
+          ENTITLEMENTS="Assets/plugin.entitlements"
+          
+          # Scrub extended attributes (xattrs) to prevent notarization stalls
+          xattr -cr "${{ env.BUILD_DIR }}/Mayerism_artefacts/Release"
           
           # VST3
           vst3_src="${{ env.BUILD_DIR }}/Mayerism_artefacts/Release/VST3/${{ env.TARGET }}.vst3"
           if [ -d "$vst3_src" ]; then
              echo "Signing VST3..."
-             codesign --force --deep --options runtime --timestamp --sign "$IDENTITY" "$vst3_src"
+             codesign --force --deep --options runtime --entitlements "$ENTITLEMENTS" --timestamp --sign "$IDENTITY" "$vst3_src"
           else
              echo "⚠️ Warning: VST3 not found at $vst3_src"
           fi
@@ -88,10 +88,9 @@ jobs:
           au_src="${{ env.BUILD_DIR }}/Mayerism_artefacts/Release/AU/${{ env.TARGET }}.component"
           if [ -d "$au_src" ]; then
              echo "Signing AU..."
-             codesign --force --deep --options runtime --timestamp --sign "$IDENTITY" "$au_src"
+             codesign --force --deep --options runtime --entitlements "$ENTITLEMENTS" --timestamp --sign "$IDENTITY" "$au_src"
           else
              echo "⚠️ Warning: AU not found at $au_src - Did you build it?"
-             # Fail if AU missing, since we expect it now
              exit 1 
           fi
 
@@ -143,7 +142,7 @@ jobs:
           INST_IDENTITY="Developer ID Installer"
           FINAL_PKG="${{ env.TARGET }}-macOS-Universal-Installer.pkg"
           
-          productbuild --distribution "Assets/Installer/distribution.xml" \
+          productbuild --distribution "Assets/distribution.xml" \
                        --package-path "$GITHUB_WORKSPACE/packages" \
                        --resources "Assets/Installer" \
                        --sign "$INST_IDENTITY" \

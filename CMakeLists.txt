@@ -49,18 +49,13 @@ juce_add_plugin(${PROJECT_NAME}
     VERSION ${PLUGIN_VERSION}
     ICON_BIG "Assets/ICON.png"
     ICON_SMALL "Assets/ICON.png"
-    COMPANY_NAME "CraftLabs"
-    # IS_SYNTH TRUE/FALSE                 
-    # NEEDS_MIDI_INPUT TRUE/FALSE           
-    # NEEDS_MIDI_OUTPUT TRUE/FALSE        
-    # IS_MIDI_EFFECT TRUE/FALSE         
-    # EDITOR_WANTS_KEYBOARD_FOCUS TRUE/FALSE
-    # COPY_PLUGIN_AFTER_BUILD TRUE  
+    COMPANY_NAME "craftlabs"
+    BUNDLE_ID "com.craftlabs.mayerism"
     PLUGIN_MANUFACTURER_CODE TPCL             
     PLUGIN_CODE CLM1
     FORMATS AU VST3 Standalone                  
     PRODUCT_NAME "Mayerism"
-    JucePlugin_Manufacturer "CraftLabs"
+    JucePlugin_Manufacturer "craftlabs"
     )        
     
 juce_generate_juce_header(${PROJECT_NAME})
