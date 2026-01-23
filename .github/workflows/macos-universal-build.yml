@@ -248,3 +248,10 @@ jobs:
         with:
           name: Mayerism-macOS-Universal-Installer
           path: Mayerism-macOS-Universal-Installer.pkg
+
+      # 1️⃣4️⃣ Release
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: Mayerism-macOS-Universal-Installer.pkg

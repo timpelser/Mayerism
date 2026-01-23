@@ -67,3 +67,10 @@ jobs:
         with:
           name: Mayerism-Windows-Installer
           path: "installer_output/*.exe"
+
+      # 8️⃣ Release
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: installer_output/*.exe
