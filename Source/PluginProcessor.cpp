@@ -328,10 +328,30 @@ juce::AudioProcessorEditor *NamJUCEAudioProcessor::createEditor() {
 }
 
 //==============================================================================
-void NamJUCEAudioProcessor::getStateInformation(juce::MemoryBlock &destData) {}
+void NamJUCEAudioProcessor::getStateInformation(juce::MemoryBlock &destData)
+{
+    // store full APVTS state (including the custom "presetName" property)
+    if (auto xml = apvts.copyState().createXml())
+    {
+        copyXmlToBinary(*xml, destData);
+    }
+}
 
 void NamJUCEAudioProcessor::setStateInformation(const void *data,
-                                                int sizeInBytes) {}
+                                                int sizeInBytes)
+{
+    // load a previously saved state from a host/project file
+    if (auto xml = getXmlFromBinary(data, sizeInBytes))
+    {
+        auto vt = juce::ValueTree::fromXml(*xml);
+        if (vt.isValid())
+        {
+            // the PresetManager listens to apvts.state and will update its
+            // currentPreset value automatically when the property changes.
+            apvts.replaceState(vt);
+        }
+    }
+}
 
 juce::AudioProcessorValueTreeState::ParameterLayout
 NamJUCEAudioProcessor::createParameters() {
