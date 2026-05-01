@@ -158,15 +158,15 @@ void NamJUCEAudioProcessor::prepareToPlay(double sampleRate,
 
   // Load the baked-in model via a temporary file
   auto tempDir = juce::File::getSpecialLocation(juce::File::tempDirectory);
-  auto modelTempFile = tempDir.getChildFile("tworock_baked.nam");
+  auto modelTempFile = tempDir.getChildFile("tworock_optimized_baked.nam");
 
   // Write binary data to temp file if it doesn't exist or has different size
   // (Simple check to avoid rewriting every time, though rewriting is also
   // fast)
   if (!modelTempFile.existsAsFile() ||
-      modelTempFile.getSize() != BinaryData::tworock_namSize) {
-    modelTempFile.replaceWithData(BinaryData::tworock_nam,
-                                  BinaryData::tworock_namSize);
+      modelTempFile.getSize() != BinaryData::tworockoptimized_namSize) {
+    modelTempFile.replaceWithData(BinaryData::tworockoptimized_nam,
+                                  BinaryData::tworockoptimized_namSize);
   }
 
   if (modelTempFile.existsAsFile()) {

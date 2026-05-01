@@ -12,6 +12,7 @@ juce_add_binary_data(BinaryData SOURCES
     knob_pre_effects.png
     knob_post_effects.png
     AmpModels/tworock.nam
+    AmpModels/tworock-optimized.nam
     PreIcon.png
     AmpIcon.png
     PostIcon.png
